@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body {
+    @apply bg-bg text-ink antialiased;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex h-[50px] items-center justify-center gap-2 rounded-input bg-ink px-5 text-sm font-bold text-white transition hover:bg-ink-2 disabled:opacity-40;
+  }
+
+  .btn-accent {
+    @apply inline-flex h-[50px] items-center justify-center gap-2 rounded-input bg-accent px-5 text-sm font-bold text-accent-ink transition hover:bg-accent-2 disabled:opacity-40;
+  }
+
+  .btn-ghost {
+    @apply inline-flex h-[38px] items-center justify-center gap-1.5 rounded-btn border border-line2 bg-surface px-3 text-xs font-semibold text-ink transition hover:bg-bg;
+  }
+
+  .card {
+    @apply rounded-card bg-surface p-4 shadow-card;
+  }
+
+  .card-lg {
+    @apply rounded-card-lg bg-surface p-4 shadow-card-lg;
+  }
+
+  .card-ink {
+    @apply rounded-card-lg bg-ink p-5 text-white shadow-card-lg;
+  }
+
+  .label-up {
+    @apply text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3;
+  }
+
+  .label-up-bold {
+    @apply text-[11px] font-bold uppercase tracking-[0.08em] text-ink-3;
+  }
+
+  .mono {
+    @apply font-mono tabular-nums;
+  }
+
+  .input {
+    @apply w-full rounded-input border border-line2 bg-surface px-4 py-3 text-sm font-semibold text-ink placeholder:font-medium placeholder:text-ink-3 focus:border-ink focus:outline-none disabled:bg-bg disabled:text-ink-3;
+  }
+
+  .pill {
+    @apply inline-flex items-center gap-1 rounded-pill px-2.5 py-1 text-[12px] font-semibold;
+  }
+
+  .pill-default {
+    @apply pill bg-[rgba(47,69,80,0.07)] text-ink-2;
+  }
+
+  .pill-accent {
+    @apply pill bg-accent text-accent-ink;
+  }
+
+  .pill-dark {
+    @apply pill bg-ink text-white;
+  }
+
+  .pill-pos {
+    @apply pill bg-[rgba(47,122,106,0.12)] text-pos;
+  }
+
+  .pill-neg {
+    @apply pill bg-[rgba(160,73,107,0.12)] text-neg;
+  }
+
+  .pill-ghost {
+    @apply pill border border-line2 bg-transparent text-ink-3;
+  }
+}

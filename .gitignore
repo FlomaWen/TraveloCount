@@ -1,0 +1,58 @@
+# Dependencies & build outputs
+node_modules/
+.turbo/
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# Prisma
+**/prisma/generated/
+
+# Env files (NEVER commit secrets)
+.env
+.env.local
+.env.*.local
+apps/*/.env
+apps/*/.env.local
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Test & coverage
+coverage/
+.nyc_output/
+
+# User uploads
+uploads/
+!uploads/.gitkeep
+
+# IDE / editors
+.idea/
+.vscode/
+*.iml
+*.suo
+*.user
+
+# AI assistants & local agents
+.claude/
+.cursor/
+.aider*
+.github/copilot/
+CLAUDE.local.md
+
+# Misc temp
+*.tmp
+*.bak
+.cache/

@@ -1,0 +1,356 @@
+'use client';
+
+import { useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
+import { Avatar, Chip, Label } from './atoms';
+import { Sheet } from './sheet';
+import { CatIcon, IcCheck, IcEdit, IcSparkle } from './icons';
+
+const CATEGORIES = [
+  { value: 'TRANSPORT', label: 'Transport', icon: 'car' as const },
+  { value: 'RESTAURANT', label: 'Resto', icon: 'fork' as const },
+  { value: 'LODGING', label: 'Logement', icon: 'bed' as const },
+  { value: 'ACTIVITY', label: 'Activité', icon: 'ticket' as const },
+  { value: 'OTHER', label: 'Autre', icon: 'receipt' as const },
+] as const;
+
+const SPLIT_METHODS = [
+  { value: 'EQUAL', label: 'Égal' },
+  { value: 'SHARES', label: 'Parts' },
+  { value: 'EXACT', label: 'Exact' },
+] as const;
+
+const CURRENCIES = ['EUR', 'USD', 'GBP', 'CHF', 'JPY', 'CAD'];
+
+interface Member {
+  id: string;
+  name: string;
+}
+
+interface Props {
+  tripId: string;
+  tripCurrency: string;
+  members: Member[];
+  currentUserId: string;
+  onClose: () => void;
+  onCreated: () => void;
+}
+
+export function ExpenseFormModal({
+  tripId,
+  tripCurrency,
+  members,
+  currentUserId,
+  onClose,
+  onCreated,
+}: Props) {
+  const [amount, setAmount] = useState('');
+  const [currency, setCurrency] = useState(tripCurrency);
+  const [label, setLabel] = useState('');
+  const [category, setCategory] = useState<(typeof CATEGORIES)[number]['value']>('OTHER');
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [payerId, setPayerId] = useState(currentUserId);
+  const [splitMethod, setSplitMethod] = useState<(typeof SPLIT_METHODS)[number]['value']>('EQUAL');
+  const [selected, setSelected] = useState<Set<string>>(new Set(members.map((m) => m.id)));
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const amountNum = parseFloat(amount.replace(',', '.')) || 0;
+  const perEqual = selected.size > 0 ? Math.round((amountNum / selected.size) * 100) / 100 : 0;
+
+  const onlyPayerSelected = selected.size === 1 && selected.has(payerId);
+  const exactSum = splitMethod === 'EXACT'
+    ? Array.from(selected).reduce((acc, id) => acc + (Number(values[id] ?? 0) || 0), 0)
+    : 0;
+  const exactMismatch = splitMethod === 'EXACT' && amountNum > 0 && Math.abs(exactSum - amountNum) > 0.01;
+
+  const toggle = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const submit = async () => {
+    if (!amountNum || !label || selected.size === 0) return;
+    setError(null);
+    setSubmitting(true);
+    try {
+      const participants = Array.from(selected).map((id) => ({
+        userId: id,
+        value: splitMethod === 'EQUAL' ? undefined : Number(values[id] ?? 0),
+      }));
+      await apiFetch(`/trips/${tripId}/expenses`, {
+        method: 'POST',
+        body: JSON.stringify({
+          label,
+          amount: amountNum,
+          currency,
+          category,
+          date: new Date(date).toISOString(),
+          payerId,
+          splitMethod,
+          participants,
+        }),
+      });
+      onCreated();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur');
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Sheet
+      onClose={onClose}
+      title="Nouvelle dépense"
+      action={
+        <button
+          type="button"
+          onClick={submit}
+          disabled={submitting || !amountNum || !label || selected.size === 0 || exactMismatch}
+          className="rounded-[9px] bg-ink px-3 py-[7px] text-[12px] font-bold text-white disabled:opacity-40"
+        >
+          {submitting ? '…' : 'Ajouter'}
+        </button>
+      }
+    >
+      <div className="px-4 pb-6 pt-2.5">
+        {/* Amount big */}
+        <div className="flex flex-col items-center gap-1.5 border-b border-line py-6">
+          <div className="label-up-bold">Montant</div>
+          <div className="flex items-baseline gap-1">
+            <input
+              type="text"
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value.replace(/[^\d.,]/g, ''))}
+              placeholder="0,00"
+              autoFocus
+              className="mono w-[160px] border-none bg-transparent text-center text-[54px] font-semibold tracking-[-0.04em] tabular-nums text-ink outline-none placeholder:text-ink-3/40"
+            />
+            <span className="mono text-[24px] font-medium text-ink-3">
+              {currencySymbol(currency)}
+            </span>
+          </div>
+          <div className="mt-1.5 flex gap-1.5">
+            {CURRENCIES.slice(0, 4).map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCurrency(c)}
+                className={
+                  currency === c
+                    ? 'rounded-pill bg-ink px-2 py-[3px] text-[11px] font-semibold text-white'
+                    : 'rounded-pill border border-line2 px-2 py-[3px] text-[11px] font-semibold text-ink-3'
+                }
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+          {currency !== tripCurrency ? (
+            <p className="mt-2 text-[11px] text-ink-3">
+              Conversion auto vers {tripCurrency} au taux du jour
+            </p>
+          ) : null}
+        </div>
+
+        {/* Description */}
+        <div className="pt-4">
+          <Label>Description</Label>
+          <div className="flex items-center gap-2.5 rounded-input bg-bg px-3.5 py-3">
+            <IcEdit size={16} sw={1.8} className="text-ink-3" />
+            <input
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="Ex. Dîner Bairro Alto"
+              className="flex-1 border-none bg-transparent text-[14px] font-semibold text-ink outline-none placeholder:text-ink-3"
+            />
+            <Chip tone="accent" size="sm">
+              <IcSparkle size={11} sw={1.8} /> Auto
+            </Chip>
+          </div>
+        </div>
+
+        {/* Category */}
+        <div className="pt-4">
+          <Label>Catégorie</Label>
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+            {CATEGORIES.map((c) => {
+              const active = c.value === category;
+              return (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => setCategory(c.value)}
+                  className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-btn px-3 py-[9px] text-[12.5px] font-semibold ${
+                    active ? 'bg-ink text-white' : 'bg-bg text-ink-2'
+                  }`}
+                >
+                  <CatIcon name={c.icon} size={15} />
+                  {c.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Date */}
+        <div className="pt-4">
+          <Label>Date</Label>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="w-full rounded-input bg-bg px-3.5 py-3 text-[14px] font-semibold text-ink outline-none"
+          />
+        </div>
+
+        {/* Payer */}
+        <div className="pt-4">
+          <Label>Payé par</Label>
+          <div className="flex flex-wrap gap-2">
+            {members.map((m) => {
+              const active = m.id === payerId;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setPayerId(m.id)}
+                  className={`inline-flex items-center gap-2 rounded-pill p-[6px_12px_6px_6px] text-[12.5px] font-semibold ${
+                    active ? 'bg-ink text-white' : 'bg-bg text-ink-2'
+                  }`}
+                >
+                  <Avatar id={m.id} name={m.name} size={26} />
+                  {m.id === currentUserId ? 'Toi' : m.name.split(' ')[0]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Split */}
+        <div className="pt-4">
+          <div className="mb-2 flex items-center justify-between">
+            <Label noMargin>Partager entre · {selected.size}/{members.length}</Label>
+            <div className="flex gap-1 rounded-[10px] bg-bg p-[3px]">
+              {SPLIT_METHODS.map((s) => (
+                <button
+                  key={s.value}
+                  type="button"
+                  onClick={() => setSplitMethod(s.value)}
+                  className={`rounded-[8px] px-2.5 py-1 text-[11px] font-semibold ${
+                    splitMethod === s.value
+                      ? 'bg-surface text-ink shadow-card'
+                      : 'text-ink-3'
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="mb-2 flex items-center gap-1.5 rounded-[10px] bg-accent/30 px-3 py-2 text-[11.5px] text-accent-ink">
+            <span>💡</span>
+            <span>Coche <b>tous ceux à qui partager</b> la dépense (le payeur inclus s'il en profite aussi).</span>
+          </div>
+          <div className="mb-2 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setSelected(new Set(members.map((m) => m.id)))}
+              className="rounded-pill bg-bg px-3 py-1 text-[11px] font-semibold text-ink-2"
+            >
+              Tous
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelected(new Set())}
+              className="rounded-pill bg-bg px-3 py-1 text-[11px] font-semibold text-ink-2"
+            >
+              Aucun
+            </button>
+          </div>
+          {onlyPayerSelected && members.length > 1 ? (
+            <div className="mb-2 flex items-center gap-1.5 rounded-[10px] bg-neg/10 px-3 py-2 text-[11.5px] text-neg">
+              <span>⚠️</span>
+              <span>
+                Tu n'as coché que le payeur : c'est une <b>note perso</b>, aucune dette ne sera générée.
+              </span>
+            </div>
+          ) : null}
+          {exactMismatch ? (
+            <div className="mb-2 flex items-center gap-1.5 rounded-[10px] bg-neg/10 px-3 py-2 text-[11.5px] text-neg">
+              <span>⚠️</span>
+              <span>
+                La somme des montants exacts ({exactSum.toFixed(2).replace('.', ',')}{currencySymbol(currency)}) doit égaler {amountNum.toFixed(2).replace('.', ',')}{currencySymbol(currency)}.
+              </span>
+            </div>
+          ) : null}
+          <div className="overflow-hidden rounded-input bg-bg">
+            {members.map((m, i) => {
+              const checked = selected.has(m.id);
+              return (
+                <div
+                  key={m.id}
+                  onClick={() => toggle(m.id)}
+                  className={`flex cursor-pointer items-center gap-3 px-3.5 py-[11px] ${
+                    i < members.length - 1 ? 'border-b border-line' : ''
+                  }`}
+                >
+                  <div
+                    className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-[6px] border-[1.5px] ${
+                      checked ? 'border-ink bg-ink' : 'border-line2 bg-transparent'
+                    }`}
+                  >
+                    {checked ? <IcCheck size={13} sw={2.5} className="text-white" /> : null}
+                  </div>
+                  <Avatar id={m.id} name={m.name} size={26} />
+                  <div
+                    className={`flex-1 text-[13px] font-semibold ${
+                      checked ? 'text-ink' : 'text-ink-3'
+                    }`}
+                  >
+                    {m.id === currentUserId ? 'Toi' : m.name}
+                  </div>
+                  {splitMethod === 'EQUAL' ? (
+                    <span
+                      className={`mono text-[12.5px] font-semibold ${
+                        checked ? 'text-ink-2' : 'text-mute'
+                      }`}
+                    >
+                      {checked ? perEqual.toFixed(2).replace('.', ',') : '0,00'}
+                      {currencySymbol(currency)}
+                    </span>
+                  ) : checked ? (
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder={splitMethod === 'EXACT' ? '€' : 'parts'}
+                      value={values[m.id] ?? ''}
+                      onChange={(e) =>
+                        setValues((v) => ({ ...v, [m.id]: e.target.value }))
+                      }
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-20 rounded-pill border border-line2 bg-surface px-2 py-1 text-right text-[12px] mono"
+                    />
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {error ? <p className="pt-3 text-[13px] text-neg">{error}</p> : null}
+      </div>
+    </Sheet>
+  );
+}
+
+function currencySymbol(code: string): string {
+  return code === 'EUR' ? '€' : code === 'USD' ? '$' : code === 'GBP' ? '£' : code;
+}
