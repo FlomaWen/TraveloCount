@@ -20,6 +20,7 @@ export interface TripDetail {
   currency: string;
   defaultSplitMethod: 'EQUAL' | 'SHARES' | 'EXACT';
   budget: number | null;
+  hasCover: boolean;
   totalSpent: number;
   userBalance: number;
   status: 'IN_PROGRESS' | 'UPCOMING' | 'PAST' | 'UNDATED';

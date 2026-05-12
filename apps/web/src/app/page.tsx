@@ -21,6 +21,7 @@ interface Trip {
   totalSpent: number;
   userBalance: number;
   status: 'IN_PROGRESS' | 'UPCOMING' | 'PAST' | 'UNDATED';
+  hasCover: boolean;
   members: { id: string; name: string }[];
 }
 

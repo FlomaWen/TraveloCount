@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Money, AvatarStack, Chip, coverFromId, DotGridOverlay, SkylineOverlay } from './atoms';
 import { IcWallet } from './icons';
+import { env } from '@/lib/env';
 
 interface Member {
   id: string;
@@ -18,7 +19,12 @@ interface BaseTrip {
   totalSpent: number;
   userBalance: number;
   status: 'IN_PROGRESS' | 'UPCOMING' | 'PAST' | 'UNDATED';
+  hasCover?: boolean;
   members: Member[];
+}
+
+function coverImage(tripId: string): string {
+  return `${env.apiUrl}/api/trips/${tripId}/cover`;
 }
 
 function formatDates(start: string | Date | null, end: string | Date | null): string {
@@ -57,10 +63,21 @@ export function TripCardLarge({ trip }: { trip: BaseTrip & { dayNumber?: number 
       {/* Cover */}
       <div
         className="pointer-events-none relative h-32 overflow-hidden"
-        style={{ background: cover }}
+        style={trip.hasCover ? undefined : { background: cover }}
       >
-        <DotGridOverlay opacity={0.18} />
-        <SkylineOverlay />
+        {trip.hasCover ? (
+          <img
+            src={coverImage(trip.id)}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        ) : (
+          <>
+            <DotGridOverlay opacity={0.18} />
+            <SkylineOverlay />
+          </>
+        )}
+        {trip.hasCover ? <div className="absolute inset-0 bg-black/15" /> : null}
         <div className="absolute left-3.5 top-3 flex gap-1.5">
           {isInProgress && days ? (
             <Chip tone="dark" size="sm">● EN COURS · J{days.current}/{days.total}</Chip>
@@ -154,9 +171,17 @@ export function TripCardSmall({ trip, muted = false }: { trip: BaseTrip; muted?:
       />
       <div
         className="pointer-events-none relative z-[1] h-[46px] w-[46px] flex-shrink-0 overflow-hidden rounded-[14px]"
-        style={{ background: cover }}
+        style={trip.hasCover ? undefined : { background: cover }}
       >
-        <div className="absolute inset-0 bg-black/10" />
+        {trip.hasCover ? (
+          <img
+            src={coverImage(trip.id)}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        ) : (
+          <div className="absolute inset-0 bg-black/10" />
+        )}
       </div>
       <div className="pointer-events-none relative z-[1] min-w-0 flex-1">
         <div className="text-[15px] font-bold tracking-[-0.01em] text-ink">{trip.title}</div>

@@ -14,6 +14,7 @@ import { ActivityModule } from './activity/activity.module';
 import { StatsModule } from './stats/stats.module';
 import { UsersModule } from './users/users.module';
 import { AccountsModule } from './accounts/accounts.module';
+import { MessagesModule } from './messages/messages.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { AccountsModule } from './accounts/accounts.module';
     StatsModule,
     UsersModule,
     AccountsModule,
+    MessagesModule,
   ],
   controllers: [HealthController],
 })

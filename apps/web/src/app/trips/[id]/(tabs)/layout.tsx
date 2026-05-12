@@ -13,7 +13,7 @@ import {
   DotGridOverlay,
   SkylineOverlay,
 } from '@/components/atoms';
-import { IcArrowL, IcHome, IcUsers } from '@/components/icons';
+import { IcArrowL, IcChat, IcHome, IcUsers } from '@/components/icons';
 import { TabBar } from '@/components/tab-bar';
 import { LoadingFallback, Skeleton, SkeletonCard } from '@/components/skeleton';
 import { TripContext, type TripDetail } from '@/lib/trip-context';
@@ -202,11 +202,12 @@ export default function TripLayout({ children }: { children: ReactNode }) {
   );
 }
 
-function activeTabFromPath(pathname: string | null, tripId: string): 'overview' | 'expenses' | 'itinerary' | 'balance' {
+function activeTabFromPath(pathname: string | null, tripId: string): 'overview' | 'expenses' | 'itinerary' | 'balance' | 'chat' {
   if (!pathname) return 'overview';
   if (pathname.endsWith('/expenses')) return 'expenses';
   if (pathname.endsWith('/itinerary')) return 'itinerary';
   if (pathname.endsWith('/accounts')) return 'balance';
+  if (pathname.endsWith('/chat')) return 'chat';
   return 'overview';
 }
 

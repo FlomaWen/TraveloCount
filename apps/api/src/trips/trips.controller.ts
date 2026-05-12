@@ -1,4 +1,18 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Res,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/jwt.strategy';
@@ -34,6 +48,21 @@ export class TripsController {
     @Body() dto: UpdateTripDto,
   ) {
     return this.trips.update(user.id, id, dto);
+  }
+
+  @Post(':id/cover')
+  @UseInterceptors(FileInterceptor('file'))
+  uploadCover(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.trips.uploadCover(user.id, id, file);
+  }
+
+  @Delete(':id/cover')
+  clearCover(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.trips.clearCover(user.id, id);
   }
 
   @Delete(':id/leave')

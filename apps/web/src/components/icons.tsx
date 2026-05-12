@@ -54,6 +54,7 @@ export const IcSparkle = (p: IconProps) => <Icon {...p}><path d="M12 3l1.8 4.7L1
 export const IcPin = (p: IconProps) => <Icon {...p}><path d="M12 22s7-7.5 7-13a7 7 0 10-14 0c0 5.5 7 13 7 13z" /><circle cx="12" cy="9" r="2.5" /></Icon>;
 export const IcEdit = (p: IconProps) => <Icon {...p}><path d="M4 20h4l11-11-4-4L4 16v4z" /><path d="M14 6l4 4" /></Icon>;
 export const IcHome = (p: IconProps) => <Icon {...p}><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /><path d="M10 20v-6h4v6" /></Icon>;
+export const IcChat = (p: IconProps) => <Icon {...p}><path d="M4 5h16a2 2 0 012 2v9a2 2 0 01-2 2H9l-5 4V7a2 2 0 012-2z" /><path d="M8 10h8M8 13h5" /></Icon>;
 
 export type CatIconName = 'plane' | 'bed' | 'fork' | 'car' | 'ticket' | 'pin' | 'receipt';
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { apiFetch } from '@/lib/api-client';
 import { Avatar, Card, Chip, Label } from '@/components/atoms';
@@ -9,6 +9,7 @@ import { IcArrowL, IcArrowR } from '@/components/icons';
 import { InviteButton } from '@/components/invite-button';
 import { Sheet } from '@/components/sheet';
 import { LoadingFallback, Skeleton, SkeletonCircle } from '@/components/skeleton';
+import { env } from '@/lib/env';
 
 type SplitMethod = 'EQUAL' | 'SHARES' | 'EXACT';
 
@@ -31,6 +32,7 @@ interface TripDetail {
   currency: string;
   budget: number | null;
   defaultSplitMethod: SplitMethod;
+  hasCover: boolean;
   members: Member[];
 }
 
@@ -383,7 +385,12 @@ export default function MembersPage() {
       ) : null}
 
       {sheet === 'edit' ? (
-        <EditTripSheet trip={trip} onClose={() => setSheet(null)} onSave={updateTrip} />
+        <EditTripSheet
+          trip={trip}
+          onClose={() => setSheet(null)}
+          onSave={updateTrip}
+          onCoverChanged={load}
+        />
       ) : null}
     </main>
   );
@@ -393,6 +400,7 @@ function EditTripSheet({
   trip,
   onClose,
   onSave,
+  onCoverChanged,
 }: {
   trip: TripDetail;
   onClose: () => void;
@@ -404,7 +412,9 @@ function EditTripSheet({
     ambiance?: TripAmbiance | null;
     budget?: number | null;
   }) => Promise<void> | void;
+  onCoverChanged: () => void;
 }) {
+  const { data: session } = useSession();
   const [title, setTitle] = useState(trip.title);
   const [destination, setDestination] = useState(trip.destination ?? '');
   const [startDate, setStartDate] = useState(
@@ -416,6 +426,61 @@ function EditTripSheet({
   const [ambiance, setAmbiance] = useState<TripAmbiance | ''>(trip.ambiance ?? '');
   const [budget, setBudget] = useState(trip.budget !== null ? String(trip.budget) : '');
   const [saving, setSaving] = useState(false);
+  const [coverVersion, setCoverVersion] = useState(0);
+  const [coverBusy, setCoverBusy] = useState(false);
+  const [coverError, setCoverError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const uploadCover = async (file: File) => {
+    if (!session?.accessToken) return;
+    setCoverError(null);
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setCoverError(`Format non supporté: ${file.type}`);
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setCoverError('Image trop volumineuse (5 MB max)');
+      return;
+    }
+    setCoverBusy(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch(`${env.apiUrl}/api/trips/${trip.id}/cover`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${session.accessToken}` },
+        body: form,
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setCoverVersion((v) => v + 1);
+      onCoverChanged();
+    } catch (e) {
+      setCoverError(e instanceof Error ? e.message : 'Erreur upload');
+    } finally {
+      setCoverBusy(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  const removeCover = async () => {
+    if (coverBusy) return;
+    setCoverError(null);
+    setCoverBusy(true);
+    try {
+      await apiFetch(`/trips/${trip.id}/cover`, { method: 'DELETE' });
+      setCoverVersion((v) => v + 1);
+      onCoverChanged();
+    } catch (e) {
+      setCoverError(e instanceof Error ? e.message : 'Erreur');
+    } finally {
+      setCoverBusy(false);
+    }
+  };
+
+  const coverUrl =
+    trip.hasCover && coverVersion >= 0
+      ? `${env.apiUrl}/api/trips/${trip.id}/cover?v=${coverVersion}`
+      : null;
 
   const save = async () => {
     setSaving(true);
@@ -447,6 +512,54 @@ function EditTripSheet({
       }
     >
       <div className="space-y-4 px-4 pb-6 pt-2">
+        <div>
+          <Label>Image d'affiche</Label>
+          <div className="relative overflow-hidden rounded-card bg-bg" style={{ aspectRatio: '16 / 9' }}>
+            {coverUrl ? (
+              <img
+                src={coverUrl}
+                alt=""
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-[12px] font-semibold text-ink-3">
+                Aucune image
+              </div>
+            )}
+          </div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) uploadCover(f);
+            }}
+            className="hidden"
+          />
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={coverBusy}
+              className="flex-1 rounded-input bg-bg px-3 py-2 text-[12.5px] font-semibold text-ink disabled:opacity-50"
+            >
+              {coverBusy ? 'Envoi…' : trip.hasCover ? 'Changer' : 'Choisir une image'}
+            </button>
+            {trip.hasCover ? (
+              <button
+                type="button"
+                onClick={removeCover}
+                disabled={coverBusy}
+                className="rounded-input border border-line2 px-3 py-2 text-[12.5px] font-semibold text-neg disabled:opacity-50"
+              >
+                Retirer
+              </button>
+            ) : null}
+          </div>
+          {coverError ? <p className="mt-1 text-[12px] text-neg">{coverError}</p> : null}
+        </div>
+
         <label className="block">
           <Label>Titre</Label>
           <input

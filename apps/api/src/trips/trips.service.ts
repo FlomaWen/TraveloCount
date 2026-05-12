@@ -1,10 +1,17 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { ActivityType, Prisma, TripRole } from '@prisma/client';
+import { createReadStream, promises as fs } from 'fs';
+import { extname, join, resolve } from 'path';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 import { UpdateTripDto } from './dto/update-trip.dto';
 import { computeBalances, computeSettlements } from './balances';
+
+const COVER_ROOT = resolve(process.cwd(), 'uploads', 'trip-covers');
+const COVER_ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const COVER_MAX_SIZE = 5 * 1024 * 1024;
 
 @Injectable()
 export class TripsService {
@@ -69,6 +76,7 @@ export class TripsService {
         ambiance: trip.ambiance,
         currency: trip.currency,
         budget: trip.budget ? Number(trip.budget) : null,
+        hasCover: !!trip.coverPath,
         totalSpent,
         userBalance,
         status,
@@ -108,6 +116,7 @@ export class TripsService {
       currency: trip.currency,
       defaultSplitMethod: trip.defaultSplitMethod,
       budget: trip.budget ? Number(trip.budget) : null,
+      hasCover: !!trip.coverPath,
       totalSpent,
       userBalance,
       status: computeStatus(trip.startDate, trip.endDate, now),
@@ -171,6 +180,79 @@ export class TripsService {
     }
     await this.prisma.trip.delete({ where: { id: tripId } });
     return { deleted: true };
+  }
+
+  async uploadCover(actorId: string, tripId: string, file: Express.Multer.File) {
+    const member = await this.prisma.tripMember.findUnique({
+      where: { tripId_userId: { tripId, userId: actorId } },
+    });
+    if (!member) throw new NotFoundException('Trip not found');
+    if (member.role !== TripRole.ADMIN) {
+      throw new ForbiddenException('Only admins can change the cover');
+    }
+    if (!COVER_ALLOWED_MIME.has(file.mimetype)) {
+      throw new BadRequestException(`Unsupported image type: ${file.mimetype}`);
+    }
+    if (file.size > COVER_MAX_SIZE) {
+      throw new BadRequestException(`File too large (max ${COVER_MAX_SIZE / 1024 / 1024} MB)`);
+    }
+
+    const ext = extname(file.originalname) || mimeToExt(file.mimetype);
+    const stored = `${tripId}-${randomUUID()}${ext}`;
+    await fs.mkdir(COVER_ROOT, { recursive: true });
+    await fs.writeFile(join(COVER_ROOT, stored), file.buffer);
+
+    const existing = await this.prisma.trip.findUnique({
+      where: { id: tripId },
+      select: { coverPath: true },
+    });
+    if (existing?.coverPath) {
+      await fs.unlink(join(COVER_ROOT, existing.coverPath)).catch(() => undefined);
+    }
+
+    await this.prisma.trip.update({
+      where: { id: tripId },
+      data: { coverPath: stored },
+    });
+    return { coverPath: stored };
+  }
+
+  async clearCover(actorId: string, tripId: string) {
+    const member = await this.prisma.tripMember.findUnique({
+      where: { tripId_userId: { tripId, userId: actorId } },
+    });
+    if (!member) throw new NotFoundException('Trip not found');
+    if (member.role !== TripRole.ADMIN) {
+      throw new ForbiddenException('Only admins can change the cover');
+    }
+    const existing = await this.prisma.trip.findUnique({
+      where: { id: tripId },
+      select: { coverPath: true },
+    });
+    if (existing?.coverPath) {
+      await fs.unlink(join(COVER_ROOT, existing.coverPath)).catch(() => undefined);
+    }
+    await this.prisma.trip.update({
+      where: { id: tripId },
+      data: { coverPath: null },
+    });
+    return { coverPath: null };
+  }
+
+  async getCoverStream(tripId: string) {
+    const trip = await this.prisma.trip.findUnique({
+      where: { id: tripId },
+      select: { coverPath: true },
+    });
+    if (!trip || !trip.coverPath) throw new NotFoundException('No cover');
+    const absolutePath = join(COVER_ROOT, trip.coverPath);
+    await fs.access(absolutePath).catch(() => {
+      throw new NotFoundException('Cover missing on disk');
+    });
+    return {
+      stream: createReadStream(absolutePath),
+      mimeType: extToMime(extname(trip.coverPath)),
+    };
   }
 
   async update(actorId: string, tripId: string, dto: UpdateTripDto) {
@@ -310,4 +392,19 @@ function computeDayNumber(start: Date | null, end: Date | null, now: Date): numb
 function computeTotalDays(start: Date | null, end: Date | null): number | null {
   if (!start || !end) return null;
   return Math.floor((end.getTime() - start.getTime()) / (24 * 3600 * 1000)) + 1;
+}
+
+function mimeToExt(mime: string): string {
+  if (mime === 'image/jpeg') return '.jpg';
+  if (mime === 'image/png') return '.png';
+  if (mime === 'image/webp') return '.webp';
+  return '';
+}
+
+function extToMime(ext: string): string {
+  const e = ext.toLowerCase();
+  if (e === '.jpg' || e === '.jpeg') return 'image/jpeg';
+  if (e === '.png') return 'image/png';
+  if (e === '.webp') return 'image/webp';
+  return 'application/octet-stream';
 }
