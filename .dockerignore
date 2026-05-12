@@ -1,0 +1,14 @@
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+.git
+docs
+.env
+.env.local
+**/.env.local
+
+uploads
+*.log
+.DS_Store
+.idea
