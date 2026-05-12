@@ -24,6 +24,8 @@ COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY apps/api/package.json apps/api/
 COPY packages/shared/package.json packages/shared/
 RUN pnpm install --frozen-lockfile --prod --filter @travelocount/api... --filter @travelocount/shared
+COPY apps/api/prisma apps/api/prisma
+RUN pnpm --filter @travelocount/api exec prisma generate
 
 # ── runner ─────────────────────────────────────────────────────
 FROM node:22-alpine AS runner
