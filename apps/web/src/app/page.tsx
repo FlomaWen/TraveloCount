@@ -94,13 +94,13 @@ export default function HomePage() {
               </span>
             </div>
             <div className="mt-3.5 flex gap-2">
-              <button
-                type="button"
+              <Link
+                href="/accounts"
                 className="flex h-[38px] flex-1 items-center justify-center gap-1.5 rounded-btn bg-accent text-[13px] font-bold tracking-[0.01em] text-accent-ink"
               >
                 <IcSwap size={15} sw={2} />
                 Régler les comptes
-              </button>
+              </Link>
             </div>
           </div>
         </div>
