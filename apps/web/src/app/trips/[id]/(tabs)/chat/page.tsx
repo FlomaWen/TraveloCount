@@ -60,17 +60,22 @@ export default function ChatPage() {
             Aucun message. Démarrez la conversation.
           </div>
         ) : (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-0.5">
             {messages.map((m, i) => {
+              const prev = messages[i - 1];
+              const next = messages[i + 1];
               const isMe = m.author.id === session?.userId;
-              const showHeader =
-                !isMe && (i === 0 || messages[i - 1]!.author.id !== m.author.id);
+              const sameAuthorAsPrev =
+                prev && prev.author.id === m.author.id && withinGroupWindow(prev.createdAt, m.createdAt);
+              const sameAuthorAsNext =
+                next && next.author.id === m.author.id && withinGroupWindow(m.createdAt, next.createdAt);
               return (
                 <MessageBubble
                   key={m.id}
                   message={m}
                   isMe={isMe}
-                  showHeader={showHeader}
+                  isFirstOfGroup={!sameAuthorAsPrev}
+                  isLastOfGroup={!sameAuthorAsNext}
                 />
               );
             })}
@@ -106,21 +111,30 @@ export default function ChatPage() {
 function MessageBubble({
   message,
   isMe,
-  showHeader,
+  isFirstOfGroup,
+  isLastOfGroup,
 }: {
   message: ChatMessage;
   isMe: boolean;
-  showHeader: boolean;
+  isFirstOfGroup: boolean;
+  isLastOfGroup: boolean;
 }) {
+  const bubbleRadius = isMe
+    ? `rounded-[18px] ${isFirstOfGroup ? '' : 'rounded-tr-[6px]'} ${isLastOfGroup ? 'rounded-br-[6px]' : 'rounded-br-[6px]'}`
+    : `rounded-[18px] ${isFirstOfGroup ? '' : 'rounded-tl-[6px]'} ${isLastOfGroup ? 'rounded-bl-[6px]' : 'rounded-bl-[6px]'}`;
   return (
-    <div className={`flex items-end gap-2 ${isMe ? 'flex-row-reverse' : ''}`}>
+    <div
+      className={`flex items-end gap-2 ${isMe ? 'flex-row-reverse' : ''} ${
+        isFirstOfGroup ? 'mt-2' : ''
+      }`}
+    >
       <div className="w-7 flex-shrink-0">
-        {!isMe && showHeader ? (
+        {!isMe && isLastOfGroup ? (
           <Avatar id={message.author.id} name={message.author.name} size={28} />
         ) : null}
       </div>
       <div className={`flex max-w-[78%] flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-        {!isMe && showHeader ? (
+        {!isMe && isFirstOfGroup ? (
           <div className="mb-0.5 text-[11px] font-semibold text-ink-3">
             {message.author.name.split(' ')[0]}
           </div>
@@ -128,18 +142,26 @@ function MessageBubble({
         <div
           className={
             isMe
-              ? 'rounded-[18px] rounded-br-[6px] bg-ink px-3.5 py-2 text-[14px] text-white'
-              : 'rounded-[18px] rounded-bl-[6px] bg-bg px-3.5 py-2 text-[14px] text-ink'
+              ? `${bubbleRadius} bg-ink px-3.5 py-2 text-[14px] text-white`
+              : `${bubbleRadius} bg-[rgba(47,69,80,0.08)] px-3.5 py-2 text-[14px] text-ink`
           }
         >
           {message.content}
         </div>
-        <div className="mt-0.5 text-[10px] font-medium text-ink-3">
-          {formatTime(message.createdAt)}
-        </div>
+        {isLastOfGroup ? (
+          <div className="mt-0.5 text-[10px] font-medium text-ink-3">
+            {formatTime(message.createdAt)}
+          </div>
+        ) : null}
       </div>
     </div>
   );
+}
+
+const GROUP_WINDOW_MS = 5 * 60 * 1000;
+
+function withinGroupWindow(prevIso: string, currIso: string): boolean {
+  return Math.abs(new Date(currIso).getTime() - new Date(prevIso).getTime()) < GROUP_WINDOW_MS;
 }
 
 function formatTime(iso: string): string {

@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/api-client';
 import { Avatar, Chip, Label } from './atoms';
 import { Sheet } from './sheet';
-import { CatIcon, IcCheck, IcEdit, IcSparkle } from './icons';
+import { CatIcon, IcCheck, IcEdit, IcReceipt, IcSparkle } from './icons';
 
 const CATEGORIES = [
   { value: 'TRANSPORT', label: 'Transport', icon: 'car' as const },
@@ -96,6 +97,22 @@ export function ExpenseFormModal({
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [linkedDocs, setLinkedDocs] = useState<{ id: string; filename: string }[]>([]);
+
+  useEffect(() => {
+    if (!expense) return;
+    let cancelled = false;
+    apiFetch<{ id: string; filename: string }[]>(
+      `/trips/${tripId}/documents?expenseId=${expense.id}`,
+    )
+      .then((d) => {
+        if (!cancelled) setLinkedDocs(d);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [expense, tripId]);
 
   const amountNum = parseFloat(amount.replace(',', '.')) || 0;
   const perEqual = selected.size > 0 ? Math.round((amountNum / selected.size) * 100) / 100 : 0;
@@ -403,6 +420,39 @@ export function ExpenseFormModal({
         </div>
 
         {error ? <p className="pt-3 text-[13px] text-neg">{error}</p> : null}
+
+        {isEdit ? (
+          <div className="pt-4">
+            <div className="flex items-center justify-between">
+              <Label noMargin>Documents joints · {linkedDocs.length}</Label>
+              <Link
+                href={`/trips/${tripId}/documents`}
+                className="text-[11.5px] font-semibold text-ink-3"
+              >
+                Gérer →
+              </Link>
+            </div>
+            {linkedDocs.length === 0 ? (
+              <p className="mt-1 text-[12px] text-ink-3">
+                Aucun document lié. Va dans <strong>Documents</strong> pour joindre une facture.
+              </p>
+            ) : (
+              <div className="mt-2 flex flex-col gap-1.5">
+                {linkedDocs.map((d) => (
+                  <div
+                    key={d.id}
+                    className="flex items-center gap-2 rounded-input bg-bg px-3 py-2"
+                  >
+                    <IcReceipt size={14} sw={1.8} className="text-ink-3" />
+                    <span className="flex-1 truncate text-[12.5px] font-medium text-ink">
+                      {d.filename}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
 
         {isEdit && canDelete ? (
           <button

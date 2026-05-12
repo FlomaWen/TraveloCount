@@ -14,6 +14,7 @@ const round = (n: number) => Math.round(n * 100) / 100;
 export function computeBalances(
   memberIds: string[],
   expenses: { payerId: string; amount: number; shares: { userId: string; amount: number }[] }[],
+  confirmedSettlements: { fromUserId: string; toUserId: string; amount: number }[] = [],
 ): Balance[] {
   const map = new Map<string, number>();
   for (const id of memberIds) map.set(id, 0);
@@ -22,6 +23,11 @@ export function computeBalances(
     for (const s of exp.shares) {
       map.set(s.userId, (map.get(s.userId) ?? 0) - s.amount);
     }
+  }
+  // A settlement confirmed: from paid to. So from's debt decreases (+), to's credit decreases (-).
+  for (const s of confirmedSettlements) {
+    map.set(s.fromUserId, (map.get(s.fromUserId) ?? 0) + s.amount);
+    map.set(s.toUserId, (map.get(s.toUserId) ?? 0) - s.amount);
   }
   return Array.from(map.entries()).map(([userId, amount]) => ({
     userId,

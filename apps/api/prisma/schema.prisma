@@ -45,9 +45,18 @@ enum ActivityType {
   MEMBER_JOINED
   EXPENSE_ADDED
   EXPENSE_SETTLED
+  SETTLEMENT_SENT
+  SETTLEMENT_CONFIRMED
   ITINERARY_ADDED
   DOCUMENT_UPLOADED
   MESSAGE_POSTED
+}
+
+enum SettlementStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+  CANCELLED
 }
 
 model User {
@@ -60,13 +69,15 @@ model User {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
-  memberships    TripMember[]
-  expensesPaid   Expense[]        @relation("ExpensePayer")
-  expenseShares  ExpenseShare[]
-  uploads        Document[]
-  messages       Message[]
-  activityEvents ActivityEvent[]
-  invitesCreated Invite[]         @relation("InviteCreator")
+  memberships      TripMember[]
+  expensesPaid     Expense[]        @relation("ExpensePayer")
+  expenseShares    ExpenseShare[]
+  uploads          Document[]
+  messages         Message[]
+  activityEvents   ActivityEvent[]
+  invitesCreated   Invite[]         @relation("InviteCreator")
+  settlementsSent  Settlement[]     @relation("SettlementFrom")
+  settlementsRecv  Settlement[]     @relation("SettlementTo")
 }
 
 model Trip {
@@ -90,6 +101,7 @@ model Trip {
   messages       Message[]
   activityEvents ActivityEvent[]
   invites        Invite[]
+  settlements    Settlement[]
 }
 
 model TripMember {
@@ -228,4 +240,24 @@ model ExchangeRate {
   fetchedAt DateTime @default(now())
 
   @@unique([base, quote])
+}
+
+model Settlement {
+  id            String           @id @default(cuid())
+  tripId        String
+  fromUserId    String
+  toUserId      String
+  amount        Decimal          @db.Decimal(12, 2)
+  currency      String
+  status        SettlementStatus @default(PENDING)
+  createdAt     DateTime         @default(now())
+  confirmedAt   DateTime?
+  cancelledAt   DateTime?
+  rejectedAt    DateTime?
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  from User @relation("SettlementFrom", fields: [fromUserId], references: [id])
+  to   User @relation("SettlementTo", fields: [toUserId], references: [id])
+
+  @@index([tripId, status])
 }

@@ -324,6 +324,10 @@ export class TripsService {
         currency: true,
         members: { include: { user: { select: { id: true, name: true } } } },
         expenses: { select: { payerId: true, amount: true, shares: true } },
+        settlements: {
+          where: { status: 'CONFIRMED' },
+          select: { fromUserId: true, toUserId: true, amount: true },
+        },
       },
     });
     if (!trip) throw new NotFoundException('Trip not found');
@@ -337,8 +341,13 @@ export class TripsService {
       amount: Number(e.amount),
       shares: e.shares.map((s) => ({ userId: s.userId, amount: Number(s.amount) })),
     }));
+    const confirmedSettlements = trip.settlements.map((s) => ({
+      fromUserId: s.fromUserId,
+      toUserId: s.toUserId,
+      amount: Number(s.amount),
+    }));
 
-    const balances = computeBalances(memberIds, expenses);
+    const balances = computeBalances(memberIds, expenses, confirmedSettlements);
     const settlements = computeSettlements(balances);
     const memberMap = new Map(trip.members.map((m) => [m.userId, m.user]));
 

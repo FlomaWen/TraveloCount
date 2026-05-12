@@ -81,17 +81,45 @@ export class DocumentsService {
     return this.sanitize(doc);
   }
 
-  async list(userId: string, tripId: string) {
+  async list(userId: string, tripId: string, expenseId?: string) {
     const member = await this.prisma.tripMember.findUnique({
       where: { tripId_userId: { tripId, userId } },
     });
     if (!member) throw new ForbiddenException('Not a member of this trip');
     const docs = await this.prisma.document.findMany({
-      where: { tripId },
+      where: {
+        tripId,
+        ...(expenseId ? { linkedExpenseId: expenseId } : {}),
+      },
       include: { uploader: { select: { id: true, name: true } } },
       orderBy: { createdAt: 'desc' },
     });
     return docs.map((d) => this.sanitize(d));
+  }
+
+  async link(userId: string, documentId: string, linkedExpenseId: string | null) {
+    const doc = await this.prisma.document.findUnique({
+      where: { id: documentId },
+      include: { trip: { select: { members: { select: { userId: true } } } } },
+    });
+    if (!doc) throw new NotFoundException('Document not found');
+    if (!doc.trip.members.some((m) => m.userId === userId)) {
+      throw new ForbiddenException('Not a member of this trip');
+    }
+    if (linkedExpenseId) {
+      const expense = await this.prisma.expense.findUnique({
+        where: { id: linkedExpenseId },
+        select: { tripId: true },
+      });
+      if (!expense || expense.tripId !== doc.tripId) {
+        throw new BadRequestException('Linked expense not in this trip');
+      }
+    }
+    const updated = await this.prisma.document.update({
+      where: { id: documentId },
+      data: { linkedExpenseId },
+    });
+    return this.sanitize(updated);
   }
 
   async download(userId: string, documentId: string) {

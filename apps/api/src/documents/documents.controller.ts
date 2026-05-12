@@ -3,7 +3,9 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
+  Query,
   Res,
   UploadedFile,
   UseGuards,
@@ -33,8 +35,21 @@ export class DocumentsController {
   }
 
   @Get('trips/:tripId/documents')
-  list(@CurrentUser() user: AuthenticatedUser, @Param('tripId') tripId: string) {
-    return this.documents.list(user.id, tripId);
+  list(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('tripId') tripId: string,
+    @Query('expenseId') expenseId?: string,
+  ) {
+    return this.documents.list(user.id, tripId, expenseId);
+  }
+
+  @Patch('documents/:id')
+  link(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: { linkedExpenseId: string | null },
+  ) {
+    return this.documents.link(user.id, id, body.linkedExpenseId ?? null);
   }
 
   @Get('documents/:id')

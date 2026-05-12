@@ -7,7 +7,17 @@ import { apiFetch, ApiError } from '@/lib/api-client';
 import { Avatar, Card, Chip, Label } from '@/components/atoms';
 import { IcArrowL, IcCamera, IcPlus, IcReceipt } from '@/components/icons';
 import { LoadingFallback, Skeleton, SkeletonCircle } from '@/components/skeleton';
+import { Sheet } from '@/components/sheet';
 import { env } from '@/lib/env';
+
+interface ExpenseRef {
+  id: string;
+  label: string;
+  amount: number;
+  currency: string;
+  date: string;
+  category: string;
+}
 
 interface Doc {
   id: string;
@@ -33,21 +43,46 @@ export default function DocumentsPage() {
   const { data: session } = useSession();
   const [trip, setTrip] = useState<TripRef | null>(null);
   const [docs, setDocs] = useState<Doc[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseRef[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [linking, setLinking] = useState<Doc | null>(null);
+  const [linkingBusy, setLinkingBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const expenseMap = new Map(expenses.map((e) => [e.id, e]));
 
   const load = async () => {
     if (!session?.accessToken || !params?.id) return;
     try {
-      const [t, list] = await Promise.all([
+      const [t, list, exps] = await Promise.all([
         apiFetch<TripRef>(`/trips/${params.id}`),
         apiFetch<Doc[]>(`/trips/${params.id}/documents`),
+        apiFetch<ExpenseRef[]>(`/trips/${params.id}/expenses`),
       ]);
       setTrip(t);
       setDocs(list);
+      setExpenses(exps);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur');
+    }
+  };
+
+  const linkDocument = async (documentId: string, expenseId: string | null) => {
+    if (linkingBusy) return;
+    setLinkingBusy(true);
+    setError(null);
+    try {
+      await apiFetch(`/documents/${documentId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ linkedExpenseId: expenseId }),
+      });
+      setLinking(null);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur');
+    } finally {
+      setLinkingBusy(false);
     }
   };
 
@@ -207,36 +242,55 @@ export default function DocumentsPage() {
             </Card>
           ) : (
             <Card padding={0}>
-              {docs.map((d, i) => (
-                <div key={d.id}>
-                  <div className="flex items-center gap-3 px-3.5 py-3">
-                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[10px] bg-bg text-ink-2">
-                      <IcReceipt size={18} sw={1.8} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-[13.5px] font-semibold leading-tight text-ink">
-                        {d.filename}
+              {docs.map((d, i) => {
+                const linkedExpense = d.linkedExpenseId ? expenseMap.get(d.linkedExpenseId) : null;
+                return (
+                  <div key={d.id}>
+                    <div className="flex flex-col gap-2 px-3.5 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[10px] bg-bg text-ink-2">
+                          <IcReceipt size={18} sw={1.8} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-[13.5px] font-semibold leading-tight text-ink">
+                            {d.filename}
+                          </div>
+                          <div className="mt-0.5 flex items-center gap-1 text-[11px] text-ink-3">
+                            <Avatar id={d.uploader.id} name={d.uploader.name} size={16} />
+                            <span className="font-medium">{d.uploader.name.split(' ')[0]}</span>
+                            <span className="text-mute">·</span>
+                            <span>{formatSize(d.sizeBytes)}</span>
+                            <span className="text-mute">·</span>
+                            <span>{new Date(d.createdAt).toLocaleDateString('fr-FR')}</span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => download(d)}
+                          className="rounded-pill bg-ink px-3 py-1.5 text-[11.5px] font-bold text-white"
+                        >
+                          Télécharger
+                        </button>
                       </div>
-                      <div className="mt-0.5 flex items-center gap-1 text-[11px] text-ink-3">
-                        <Avatar id={d.uploader.id} name={d.uploader.name} size={16} />
-                        <span className="font-medium">{d.uploader.name.split(' ')[0]}</span>
-                        <span className="text-mute">·</span>
-                        <span>{formatSize(d.sizeBytes)}</span>
-                        <span className="text-mute">·</span>
-                        <span>{new Date(d.createdAt).toLocaleDateString('fr-FR')}</span>
+                      <div className="flex items-center gap-2 pl-[52px]">
+                        {linkedExpense ? (
+                          <Chip tone="accent" size="sm">
+                            🔗 {linkedExpense.label}
+                          </Chip>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => setLinking(d)}
+                          className="rounded-pill border border-line2 px-2.5 py-1 text-[11px] font-semibold text-ink-3 hover:bg-bg"
+                        >
+                          {linkedExpense ? 'Modifier le lien' : 'Lier à une dépense'}
+                        </button>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => download(d)}
-                      className="rounded-pill bg-ink px-3 py-1.5 text-[11.5px] font-bold text-white"
-                    >
-                      Télécharger
-                    </button>
+                    {i < docs.length - 1 ? <div className="h-px bg-line" /> : null}
                   </div>
-                  {i < docs.length - 1 ? <div className="h-px bg-line" /> : null}
-                </div>
-              ))}
+                );
+              })}
             </Card>
           )}
           <p className="mt-2 text-[11px] text-ink-3">
@@ -244,6 +298,65 @@ export default function DocumentsPage() {
           </p>
         </div>
       </div>
+
+      {linking ? (
+        <Sheet
+          title="Lier à une dépense"
+          onClose={() => setLinking(null)}
+          action={
+            linking.linkedExpenseId ? (
+              <button
+                type="button"
+                onClick={() => linkDocument(linking.id, null)}
+                disabled={linkingBusy}
+                className="rounded-[9px] border border-neg/40 px-3 py-[7px] text-[12px] font-bold text-neg disabled:opacity-40"
+              >
+                Délier
+              </button>
+            ) : undefined
+          }
+        >
+          <div className="px-2 pb-3">
+            {expenses.length === 0 ? (
+              <p className="px-3 py-6 text-center text-[13px] text-ink-3">
+                Aucune dépense dans ce voyage.
+              </p>
+            ) : (
+              expenses.map((e) => {
+                const selected = linking.linkedExpenseId === e.id;
+                return (
+                  <button
+                    key={e.id}
+                    type="button"
+                    onClick={() => linkDocument(linking.id, e.id)}
+                    disabled={linkingBusy}
+                    className="flex w-full items-center gap-3 rounded-card px-3 py-3 text-left hover:bg-bg disabled:opacity-50"
+                  >
+                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] bg-bg text-ink-2">
+                      <IcReceipt size={16} sw={1.8} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[14px] font-semibold text-ink">{e.label}</div>
+                      <div className="mt-0.5 text-[11.5px] text-ink-3">
+                        {new Date(e.date).toLocaleDateString('fr-FR', {
+                          day: 'numeric',
+                          month: 'short',
+                        })}{' '}
+                        ·{' '}
+                        {e.amount.toFixed(2).replace('.', ',')}
+                        {e.currency === 'EUR' ? '€' : e.currency}
+                      </div>
+                    </div>
+                    {selected ? (
+                      <span className="text-[14px] font-bold text-accent">✓</span>
+                    ) : null}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </Sheet>
+      ) : null}
     </main>
   );
 }

@@ -38,6 +38,10 @@ export class AccountsService {
             shares: { select: { userId: true, amount: true } },
           },
         },
+        settlements: {
+          where: { status: 'CONFIRMED' },
+          select: { fromUserId: true, toUserId: true, amount: true },
+        },
       },
     });
 
@@ -59,7 +63,12 @@ export class AccountsService {
         amount: Number(e.amount),
         shares: e.shares.map((s) => ({ userId: s.userId, amount: Number(s.amount) })),
       }));
-      const balances = computeBalances(memberIds, expenses);
+      const confirmed = trip.settlements.map((s) => ({
+        fromUserId: s.fromUserId,
+        toUserId: s.toUserId,
+        amount: Number(s.amount),
+      }));
+      const balances = computeBalances(memberIds, expenses, confirmed);
       const settlements = computeSettlements(balances);
 
       for (const s of settlements) {
