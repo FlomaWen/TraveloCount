@@ -18,7 +18,7 @@ interface AuthedSocket extends Socket {
 }
 
 @WebSocketGateway({
-  namespace: '/ws/chat',
+  path: '/ws/chat',
   cors: { origin: true, credentials: true },
 })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {

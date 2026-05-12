@@ -40,7 +40,8 @@ export function useChat({ tripId, accessToken }: UseChatOptions) {
     };
     fetchInitial();
 
-    const socket = io(`${env.apiUrl}/ws/chat`, {
+    const socket = io(env.apiUrl, {
+      path: '/ws/chat',
       auth: { token: accessToken },
       transports: ['websocket', 'polling'],
       withCredentials: true,
