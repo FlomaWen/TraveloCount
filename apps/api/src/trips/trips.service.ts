@@ -3,6 +3,7 @@ import { ActivityType, Prisma, TripRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
+import { UpdateTripDto } from './dto/update-trip.dto';
 import { computeBalances, computeSettlements } from './balances';
 
 @Injectable()
@@ -105,6 +106,7 @@ export class TripsService {
       endDate: trip.endDate,
       ambiance: trip.ambiance,
       currency: trip.currency,
+      defaultSplitMethod: trip.defaultSplitMethod,
       budget: trip.budget ? Number(trip.budget) : null,
       totalSpent,
       userBalance,
@@ -119,6 +121,22 @@ export class TripsService {
         role: m.role,
       })),
     };
+  }
+
+  async update(actorId: string, tripId: string, dto: UpdateTripDto) {
+    const member = await this.prisma.tripMember.findUnique({
+      where: { tripId_userId: { tripId, userId: actorId } },
+    });
+    if (!member) throw new NotFoundException('Trip not found');
+    if (member.role !== TripRole.ADMIN) {
+      throw new ForbiddenException('Only admins can update trip settings');
+    }
+
+    const data: Prisma.TripUpdateInput = {};
+    if (dto.currency !== undefined) data.currency = dto.currency.toUpperCase();
+    if (dto.defaultSplitMethod !== undefined) data.defaultSplitMethod = dto.defaultSplitMethod;
+
+    return this.prisma.trip.update({ where: { id: tripId }, data });
   }
 
   async updateMemberRole(

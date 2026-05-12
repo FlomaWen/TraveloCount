@@ -12,6 +12,7 @@ import { DocumentsModule } from './documents/documents.module';
 import { MailModule } from './mail/mail.module';
 import { ActivityModule } from './activity/activity.module';
 import { StatsModule } from './stats/stats.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { StatsModule } from './stats/stats.module';
     DocumentsModule,
     ActivityModule,
     StatsModule,
+    UsersModule,
   ],
   controllers: [HealthController],
 })

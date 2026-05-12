@@ -30,6 +30,7 @@ interface Member {
 interface Props {
   tripId: string;
   tripCurrency: string;
+  defaultSplitMethod?: (typeof SPLIT_METHODS)[number]['value'];
   members: Member[];
   currentUserId: string;
   onClose: () => void;
@@ -39,6 +40,7 @@ interface Props {
 export function ExpenseFormModal({
   tripId,
   tripCurrency,
+  defaultSplitMethod = 'EQUAL',
   members,
   currentUserId,
   onClose,
@@ -50,7 +52,7 @@ export function ExpenseFormModal({
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]['value']>('OTHER');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [payerId, setPayerId] = useState(currentUserId);
-  const [splitMethod, setSplitMethod] = useState<(typeof SPLIT_METHODS)[number]['value']>('EQUAL');
+  const [splitMethod, setSplitMethod] = useState<(typeof SPLIT_METHODS)[number]['value']>(defaultSplitMethod);
   const [selected, setSelected] = useState<Set<string>>(new Set(members.map((m) => m.id)));
   const [values, setValues] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);

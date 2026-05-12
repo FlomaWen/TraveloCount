@@ -1,11 +1,10 @@
 'use client';
 
-import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { apiFetch } from '@/lib/api-client';
-import { Card, CatBadge, Chip, Divider, Money, categoryToIcon } from '@/components/atoms';
+import { Card, CatBadge, Divider, Money, categoryToIcon } from '@/components/atoms';
 import { IcArrowL, IcFilter, IcPlus } from '@/components/icons';
 import { TabBar } from '@/components/tab-bar';
 import { ExpenseFormModal } from '@/components/expense-form-modal';
@@ -19,6 +18,7 @@ interface TripDetail {
   id: string;
   title: string;
   currency: string;
+  defaultSplitMethod: 'EQUAL' | 'SHARES' | 'EXACT';
   members: Member[];
 }
 
@@ -173,6 +173,7 @@ export default function ExpensesPage() {
         <ExpenseFormModal
           tripId={trip.id}
           tripCurrency={trip.currency}
+          defaultSplitMethod={trip.defaultSplitMethod}
           members={trip.members}
           currentUserId={session.userId}
           onClose={() => setShowModal(false)}

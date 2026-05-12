@@ -6,16 +6,25 @@ export class ActivityService {
   constructor(private readonly prisma: PrismaService) {}
 
   async listForUser(userId: string, limit = 50, since?: Date) {
-    const memberships = await this.prisma.tripMember.findMany({
-      where: { userId },
-      select: { tripId: true },
-    });
+    const [memberships, user] = await Promise.all([
+      this.prisma.tripMember.findMany({
+        where: { userId },
+        select: { tripId: true },
+      }),
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { activityFilter: true },
+      }),
+    ]);
     const tripIds = memberships.map((m) => m.tripId);
     if (tripIds.length === 0) return [];
 
     const events = await this.prisma.activityEvent.findMany({
       where: {
         tripId: { in: tripIds },
+        ...(user?.activityFilter && user.activityFilter.length > 0
+          ? { type: { in: user.activityFilter } }
+          : {}),
         ...(since ? { createdAt: { gt: since } } : {}),
       },
       include: {

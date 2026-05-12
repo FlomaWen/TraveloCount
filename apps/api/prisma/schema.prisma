@@ -51,13 +51,14 @@ enum ActivityType {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  avatarUrl String?
-  googleId  String?  @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String         @id @default(cuid())
+  email          String         @unique
+  name           String
+  avatarUrl      String?
+  googleId       String?        @unique
+  activityFilter ActivityType[] @default([TRIP_CREATED, MEMBER_JOINED, EXPENSE_ADDED, EXPENSE_SETTLED, ITINERARY_ADDED, DOCUMENT_UPLOADED, MESSAGE_POSTED])
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   memberships    TripMember[]
   expensesPaid   Expense[]        @relation("ExpensePayer")
@@ -69,16 +70,17 @@ model User {
 }
 
 model Trip {
-  id          String        @id @default(cuid())
-  title       String
-  destination String?
-  startDate   DateTime?
-  endDate     DateTime?
-  ambiance    TripAmbiance?
-  currency    String        @default("EUR")
-  budget      Decimal?      @db.Decimal(12, 2)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id                  String        @id @default(cuid())
+  title               String
+  destination         String?
+  startDate           DateTime?
+  endDate             DateTime?
+  ambiance            TripAmbiance?
+  currency            String        @default("EUR")
+  budget              Decimal?      @db.Decimal(12, 2)
+  defaultSplitMethod  SplitMethod   @default(EQUAL)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
   members        TripMember[]
   expenses       Expense[]

@@ -6,7 +6,8 @@ import { useSession } from 'next-auth/react';
 import { apiFetch } from '@/lib/api-client';
 import { Avatar, Card, Money } from '@/components/atoms';
 import { BottomNav } from '@/components/bottom-nav';
-import { IcArrowL, IcFilter, IcReceipt, IcMap, IcSparkle, IcUsers } from '@/components/icons';
+import { Sheet } from '@/components/sheet';
+import { IcFilter, IcReceipt, IcMap, IcSparkle, IcUsers } from '@/components/icons';
 
 type ActivityType =
   | 'TRIP_CREATED'
@@ -17,6 +18,26 @@ type ActivityType =
   | 'DOCUMENT_UPLOADED'
   | 'MESSAGE_POSTED';
 
+const ALL_TYPES: ActivityType[] = [
+  'TRIP_CREATED',
+  'MEMBER_JOINED',
+  'EXPENSE_ADDED',
+  'EXPENSE_SETTLED',
+  'ITINERARY_ADDED',
+  'DOCUMENT_UPLOADED',
+  'MESSAGE_POSTED',
+];
+
+const TYPE_LABELS: Record<ActivityType, string> = {
+  TRIP_CREATED: 'Voyages créés',
+  MEMBER_JOINED: 'Nouveaux membres',
+  EXPENSE_ADDED: 'Dépenses ajoutées',
+  EXPENSE_SETTLED: 'Comptes réglés',
+  ITINERARY_ADDED: 'Étapes itinéraire',
+  DOCUMENT_UPLOADED: 'Documents',
+  MESSAGE_POSTED: 'Messages',
+};
+
 interface ActivityEvent {
   id: string;
   type: ActivityType;
@@ -26,15 +47,33 @@ interface ActivityEvent {
   trip: { id: string; title: string };
 }
 
+interface Me {
+  id: string;
+  activityFilter: ActivityType[];
+}
+
 export default function ActivityPage() {
   const { data: session } = useSession();
   const [events, setEvents] = useState<ActivityEvent[] | null>(null);
+  const [me, setMe] = useState<Me | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showFilter, setShowFilter] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const loadEvents = () =>
+    apiFetch<ActivityEvent[]>('/activity?limit=50')
+      .then(setEvents)
+      .catch((e) => setError(e instanceof Error ? e.message : 'Erreur'));
 
   useEffect(() => {
     if (!session?.accessToken) return;
     let cancelled = false;
-    const load = () =>
+    apiFetch<Me>('/users/me')
+      .then((m) => {
+        if (!cancelled) setMe(m);
+      })
+      .catch(() => {});
+    const load = () => {
       apiFetch<ActivityEvent[]>('/activity?limit=50')
         .then((d) => {
           if (!cancelled) setEvents(d);
@@ -42,6 +81,7 @@ export default function ActivityPage() {
         .catch((e) => {
           if (!cancelled) setError(e instanceof Error ? e.message : 'Erreur');
         });
+    };
     load();
     const id = setInterval(load, 30_000);
     return () => {
@@ -49,6 +89,26 @@ export default function ActivityPage() {
       clearInterval(id);
     };
   }, [session?.accessToken]);
+
+  const toggleType = async (type: ActivityType) => {
+    if (!me || saving) return;
+    const next = me.activityFilter.includes(type)
+      ? me.activityFilter.filter((t) => t !== type)
+      : [...me.activityFilter, type];
+    setSaving(true);
+    try {
+      const updated = await apiFetch<Me>('/users/me', {
+        method: 'PATCH',
+        body: JSON.stringify({ activityFilter: next }),
+      });
+      setMe(updated);
+      await loadEvents();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <main className="min-h-screen pb-24">
@@ -59,6 +119,7 @@ export default function ActivityPage() {
         </div>
         <button
           type="button"
+          onClick={() => setShowFilter(true)}
           aria-label="Filtrer"
           className="inline-flex h-[38px] w-[38px] items-center justify-center rounded-btn border border-line2 bg-surface text-ink"
         >
@@ -104,8 +165,47 @@ export default function ActivityPage() {
         )}
       </div>
 
+      {showFilter ? (
+        <Sheet title="Filtrer mon activité" onClose={() => setShowFilter(false)}>
+          <div className="px-2 pb-3">
+            <p className="px-3 pb-2 pt-1 text-[12px] text-ink-3">
+              Choisis les types d'événements à afficher dans ton fil.
+            </p>
+            {ALL_TYPES.map((type) => {
+              const active = me?.activityFilter.includes(type) ?? true;
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => toggleType(type)}
+                  disabled={saving || !me}
+                  className="flex w-full items-center justify-between rounded-card px-3 py-3 text-left hover:bg-bg disabled:opacity-60"
+                >
+                  <div className="text-[14px] font-semibold text-ink">{TYPE_LABELS[type]}</div>
+                  <ToggleDot active={active} />
+                </button>
+              );
+            })}
+          </div>
+        </Sheet>
+      ) : null}
+
       <BottomNav />
     </main>
+  );
+}
+
+function ToggleDot({ active }: { active: boolean }) {
+  return (
+    <div
+      className={
+        active
+          ? 'flex h-6 w-10 items-center rounded-pill bg-accent px-0.5 justify-end'
+          : 'flex h-6 w-10 items-center rounded-pill bg-line2 px-0.5 justify-start'
+      }
+    >
+      <div className="h-5 w-5 rounded-full bg-surface shadow-card-sm" />
+    </div>
   );
 }
 

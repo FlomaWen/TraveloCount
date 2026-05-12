@@ -5,6 +5,7 @@ import type { AuthenticatedUser } from '../auth/jwt.strategy';
 import { TripsService } from './trips.service';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
+import { UpdateTripDto } from './dto/update-trip.dto';
 
 @Controller('trips')
 @UseGuards(JwtAuthGuard)
@@ -24,6 +25,15 @@ export class TripsController {
   @Get(':id')
   get(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.trips.findOneForUser(user.id, id);
+  }
+
+  @Patch(':id')
+  update(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateTripDto,
+  ) {
+    return this.trips.update(user.id, id, dto);
   }
 
   @Patch(':id/members/:userId')
