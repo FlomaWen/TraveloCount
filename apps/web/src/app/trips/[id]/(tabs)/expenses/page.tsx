@@ -1,26 +1,12 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { apiFetch } from '@/lib/api-client';
 import { Card, CatBadge, Divider, Money, categoryToIcon } from '@/components/atoms';
-import { IcArrowL, IcFilter, IcPlus } from '@/components/icons';
-import { TabBar } from '@/components/tab-bar';
+import { IcFilter, IcPlus } from '@/components/icons';
 import { ExpenseFormModal } from '@/components/expense-form-modal';
-
-interface Member {
-  id: string;
-  name: string;
-}
-
-interface TripDetail {
-  id: string;
-  title: string;
-  currency: string;
-  defaultSplitMethod: 'EQUAL' | 'SHARES' | 'EXACT';
-  members: Member[];
-}
+import { useTrip } from '@/lib/trip-context';
 
 interface Expense {
   id: string;
@@ -47,23 +33,17 @@ const FILTER_TO_CAT: Record<string, Expense['category'] | null> = {
 };
 
 export default function ExpensesPage() {
-  const router = useRouter();
-  const params = useParams<{ id: string }>();
+  const { trip, refresh } = useTrip();
   const { data: session } = useSession();
-  const [trip, setTrip] = useState<TripDetail | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('Tout');
   const [showModal, setShowModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = async () => {
-    if (!session?.accessToken || !params?.id) return;
+    if (!session?.accessToken) return;
     try {
-      const [t, e] = await Promise.all([
-        apiFetch<TripDetail>(`/trips/${params.id}`),
-        apiFetch<Expense[]>(`/trips/${params.id}/expenses`),
-      ]);
-      setTrip(t);
+      const e = await apiFetch<Expense[]>(`/trips/${trip.id}/expenses`);
       setExpenses(e);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur');
@@ -72,99 +52,72 @@ export default function ExpensesPage() {
 
   useEffect(() => {
     load();
-  }, [session?.accessToken, params?.id]);
-
-  if (!trip) return <main className="p-6 text-sm text-ink-3">{error ?? 'Chargement…'}</main>;
+  }, [session?.accessToken, trip.id]);
 
   const filtered =
-    filter === 'Tout'
-      ? expenses
-      : expenses.filter((e) => e.category === FILTER_TO_CAT[filter]);
+    filter === 'Tout' ? expenses : expenses.filter((e) => e.category === FILTER_TO_CAT[filter]);
   const grouped = groupByDay(filtered);
   const curr = currencySymbol(trip.currency);
 
   return (
-    <main className="flex min-h-screen flex-col pb-24">
-      {/* Compact header */}
-      <header className="flex items-center justify-between bg-surface px-4 py-3">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          aria-label="Retour"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-btn bg-bg text-ink"
-        >
-          <IcArrowL size={18} sw={2} />
-        </button>
-        <div className="text-center">
-          <div className="label-up">{trip.title}</div>
-          <h1 className="text-[16px] font-bold text-ink">Dépenses</h1>
+    <div className="flex-1 px-4 pt-3.5 pb-24">
+      <div className="mb-3.5 flex items-center gap-1.5 overflow-x-auto">
+        {FILTERS.map((f) => (
+          <button
+            key={f}
+            type="button"
+            onClick={() => setFilter(f)}
+            className={
+              f === filter
+                ? 'whitespace-nowrap rounded-pill bg-ink px-2.5 py-[5px] text-[12px] font-semibold text-white'
+                : 'whitespace-nowrap rounded-pill bg-[rgba(47,69,80,0.07)] px-2.5 py-[5px] text-[12px] font-semibold text-ink-2'
+            }
+          >
+            {f}
+          </button>
+        ))}
+        <div className="ml-auto inline-flex items-center gap-1 rounded-pill border border-line2 px-2.5 py-[5px] text-[12px] font-semibold text-ink-2">
+          <IcFilter size={13} sw={2} /> Trier
         </div>
-        <div className="w-9" />
-      </header>
-
-      <TabBar tripId={trip.id} active="expenses" />
-
-      <div className="flex-1 px-4 pt-3.5">
-        {/* Filters */}
-        <div className="mb-3.5 flex items-center gap-1.5 overflow-x-auto">
-          {FILTERS.map((f) => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setFilter(f)}
-              className={
-                f === filter
-                  ? 'whitespace-nowrap rounded-pill bg-ink px-2.5 py-[5px] text-[12px] font-semibold text-white'
-                  : 'whitespace-nowrap rounded-pill bg-[rgba(47,69,80,0.07)] px-2.5 py-[5px] text-[12px] font-semibold text-ink-2'
-              }
-            >
-              {f}
-            </button>
-          ))}
-          <div className="ml-auto inline-flex items-center gap-1 rounded-pill border border-line2 px-2.5 py-[5px] text-[12px] font-semibold text-ink-2">
-            <IcFilter size={13} sw={2} /> Trier
-          </div>
-        </div>
-
-        {/* Empty state */}
-        {grouped.length === 0 ? (
-          <Card className="text-center text-sm text-ink-3">
-            Aucune dépense {filter !== 'Tout' ? `dans cette catégorie` : 'pour l\'instant'}
-          </Card>
-        ) : (
-          grouped.map(([day, items]) => {
-            const dayTotal = items.reduce((acc, e) => acc + e.amount, 0);
-            return (
-              <div key={day} className="mb-3.5">
-                <div className="flex items-center justify-between px-1 pb-2 pt-1.5">
-                  <div className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-ink">
-                    {formatDay(day)}
-                  </div>
-                  <div className="text-[11.5px] font-semibold text-ink-3">
-                    <Money value={dayTotal} size={11.5} weight={600} color="#586F7C" currency={curr} />
-                  </div>
-                </div>
-                <Card padding={0}>
-                  {items.map((exp, i) => (
-                    <div key={exp.id}>
-                      <ExpenseRow expense={exp} currency={curr} myId={session?.userId} />
-                      {i < items.length - 1 ? <Divider inset={62} /> : null}
-                    </div>
-                  ))}
-                </Card>
-              </div>
-            );
-          })
-        )}
       </div>
 
-      {/* FAB */}
+      {error ? <p className="mb-2 text-sm text-neg">{error}</p> : null}
+
+      {grouped.length === 0 ? (
+        <Card className="text-center text-sm text-ink-3">
+          Aucune dépense {filter !== 'Tout' ? `dans cette catégorie` : 'pour l\'instant'}
+        </Card>
+      ) : (
+        grouped.map(([day, items]) => {
+          const dayTotal = items.reduce((acc, e) => acc + e.amount, 0);
+          return (
+            <div key={day} className="mb-3.5">
+              <div className="flex items-center justify-between px-1 pb-2 pt-1.5">
+                <div className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-ink">
+                  {formatDay(day)}
+                </div>
+                <div className="text-[11.5px] font-semibold text-ink-3">
+                  <Money value={dayTotal} size={11.5} weight={600} color="#586F7C" currency={curr} />
+                </div>
+              </div>
+              <Card padding={0}>
+                {items.map((exp, i) => (
+                  <div key={exp.id}>
+                    <ExpenseRow expense={exp} currency={curr} myId={session?.userId} />
+                    {i < items.length - 1 ? <Divider inset={62} /> : null}
+                  </div>
+                ))}
+              </Card>
+            </div>
+          );
+        })
+      )}
+
       <button
         type="button"
         onClick={() => setShowModal(true)}
         aria-label="Nouvelle dépense"
         className="fixed bottom-6 left-1/2 z-30 inline-flex h-[58px] w-[58px] -translate-x-1/2 items-center justify-center rounded-full bg-ink text-white shadow-fab"
-        style={{ marginLeft: 'calc((min(100vw, 430px) / 2) - 0px)' }}
       >
         <IcPlus size={26} sw={2.2} />
       </button>
@@ -180,10 +133,11 @@ export default function ExpensesPage() {
           onCreated={() => {
             setShowModal(false);
             load();
+            refresh();
           }}
         />
       ) : null}
-    </main>
+    </div>
   );
 }
 
