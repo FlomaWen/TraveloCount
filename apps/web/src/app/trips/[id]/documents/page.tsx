@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { Avatar, Card, Chip, Label } from '@/components/atoms';
 import { IcArrowL, IcCamera, IcPlus, IcReceipt } from '@/components/icons';
+import { LoadingFallback, Skeleton, SkeletonCircle } from '@/components/skeleton';
 import { env } from '@/lib/env';
 
 interface Doc {
@@ -103,7 +104,43 @@ export default function DocumentsPage() {
     }
   };
 
-  if (!trip) return <main className="p-6 text-sm text-ink-3">{error ?? 'Chargement…'}</main>;
+  if (!trip) {
+    if (error) return <main className="p-6 text-sm text-neg">{error}</main>;
+    return (
+      <main className="flex min-h-screen flex-col pb-24">
+        <header className="flex items-center justify-between bg-surface px-4 py-3">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            aria-label="Retour"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-btn bg-bg text-ink"
+          >
+            <IcArrowL size={18} sw={2} />
+          </button>
+          <h1 className="text-[16px] font-bold text-ink">Documents</h1>
+          <div className="w-9" />
+        </header>
+        <LoadingFallback
+          onRetry={load}
+          skeleton={
+            <div className="flex flex-col gap-2 p-4">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center gap-3 rounded-card bg-surface p-3 shadow-card">
+                  <SkeletonCircle size={40} />
+                  <div className="flex-1">
+                    <Skeleton width="70%" height={13} radius={3} />
+                    <div className="mt-1.5">
+                      <Skeleton width="50%" height={11} radius={3} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          }
+        />
+      </main>
+    );
+  }
 
   return (
     <main className="flex min-h-screen flex-col pb-24">

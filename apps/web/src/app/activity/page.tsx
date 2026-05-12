@@ -7,6 +7,7 @@ import { apiFetch } from '@/lib/api-client';
 import { Avatar, Card, Money } from '@/components/atoms';
 import { BottomNav } from '@/components/bottom-nav';
 import { Sheet } from '@/components/sheet';
+import { LoadingFallback, Skeleton, SkeletonCircle } from '@/components/skeleton';
 import { IcFilter, IcReceipt, IcMap, IcSparkle, IcUsers } from '@/components/icons';
 
 type ActivityType =
@@ -131,7 +132,28 @@ export default function ActivityPage() {
         {error ? <p className="text-sm text-neg">{error}</p> : null}
 
         {!events ? (
-          <p className="text-sm text-ink-3">Chargement…</p>
+          <LoadingFallback
+            onRetry={loadEvents}
+            skeleton={
+              <Card padding={0}>
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <div key={i}>
+                    <div className="flex items-start gap-3 px-3.5 py-3">
+                      <SkeletonCircle size={36} />
+                      <div className="min-w-0 flex-1">
+                        <Skeleton width="75%" height={13} radius={3} />
+                        <div className="mt-1.5">
+                          <Skeleton width="45%" height={11} radius={3} />
+                        </div>
+                      </div>
+                      <Skeleton width={40} height={14} radius={4} />
+                    </div>
+                    {i < 4 ? <div className="ml-[64px] h-px bg-line" /> : null}
+                  </div>
+                ))}
+              </Card>
+            }
+          />
         ) : events.length === 0 ? (
           <Card className="text-center text-sm text-ink-3">
             Pas d'activité récente. Crée un voyage ou ajoute une dépense pour démarrer.

@@ -131,7 +131,6 @@ export function ExpenseFormModal({
               value={amount}
               onChange={(e) => setAmount(e.target.value.replace(/[^\d.,]/g, ''))}
               placeholder="0,00"
-              autoFocus
               className="mono w-[160px] border-none bg-transparent text-center text-[54px] font-semibold tracking-[-0.04em] tabular-nums text-ink outline-none placeholder:text-ink-3/40"
             />
             <span className="mono text-[24px] font-medium text-ink-3">

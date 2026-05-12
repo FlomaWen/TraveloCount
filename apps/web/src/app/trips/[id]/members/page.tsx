@@ -8,6 +8,7 @@ import { Avatar, Card, Chip, Label } from '@/components/atoms';
 import { IcArrowL, IcArrowR } from '@/components/icons';
 import { InviteButton } from '@/components/invite-button';
 import { Sheet } from '@/components/sheet';
+import { LoadingFallback, Skeleton, SkeletonCircle } from '@/components/skeleton';
 
 type SplitMethod = 'EQUAL' | 'SHARES' | 'EXACT';
 
@@ -91,7 +92,65 @@ export default function MembersPage() {
     }
   };
 
-  if (!trip) return <main className="p-6 text-sm text-ink-3">Chargement…</main>;
+  if (!trip) {
+    return (
+      <main className="flex min-h-screen flex-col pb-12">
+        <header className="flex items-center justify-between bg-surface px-4 py-3">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            aria-label="Retour"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-btn bg-bg text-ink"
+          >
+            <IcArrowL size={18} sw={2} />
+          </button>
+          <h1 className="text-[16px] font-bold text-ink">Équipe du voyage</h1>
+          <div className="w-9" />
+        </header>
+        <LoadingFallback
+          onRetry={load}
+          skeleton={
+            <div className="flex flex-col gap-3 p-4">
+              <div className="px-1 pb-1">
+                <Skeleton width={120} height={11} radius={3} />
+              </div>
+              <Card padding={0}>
+                {[0, 1, 2].map((i) => (
+                  <div key={i}>
+                    <div className="flex items-center gap-3 px-3.5 py-3">
+                      <SkeletonCircle size={36} />
+                      <div className="min-w-0 flex-1">
+                        <Skeleton width="50%" height={14} radius={3} />
+                        <div className="mt-1.5">
+                          <Skeleton width="70%" height={11} radius={3} />
+                        </div>
+                      </div>
+                      <Skeleton width={56} height={22} radius={999} />
+                    </div>
+                    {i < 2 ? <div className="h-px bg-line" /> : null}
+                  </div>
+                ))}
+              </Card>
+              <div className="px-1 pb-1 pt-2">
+                <Skeleton width={160} height={11} radius={3} />
+              </div>
+              <Card padding={0}>
+                {[0, 1].map((i) => (
+                  <div key={i}>
+                    <div className="flex items-center justify-between px-3.5 py-3">
+                      <Skeleton width={150} height={13} radius={3} />
+                      <Skeleton width={70} height={12} radius={3} />
+                    </div>
+                    {i < 1 ? <div className="h-px bg-line" /> : null}
+                  </div>
+                ))}
+              </Card>
+            </div>
+          }
+        />
+      </main>
+    );
+  }
 
   const me = trip.members.find((m) => m.id === session?.userId);
   const isAdmin = me?.role === 'ADMIN';

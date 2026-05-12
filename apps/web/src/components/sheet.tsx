@@ -89,7 +89,7 @@ export function Sheet({ children, onClose, title, action }: SheetProps) {
         }}
       />
       <div
-        className="relative flex max-h-[80vh] w-full max-w-mobile flex-col rounded-t-[28px] bg-surface shadow-sheet"
+        className="relative flex max-h-[80vh] w-full max-w-mobile flex-col overflow-x-hidden rounded-t-[28px] bg-surface shadow-sheet"
         style={{
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           transform: translate,
@@ -119,7 +119,7 @@ export function Sheet({ children, onClose, title, action }: SheetProps) {
             {action ?? <div className="w-10" />}
           </div>
         ) : null}
-        <div className="flex-1 overflow-y-auto overscroll-contain">{children}</div>
+        <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">{children}</div>
       </div>
     </div>
   );

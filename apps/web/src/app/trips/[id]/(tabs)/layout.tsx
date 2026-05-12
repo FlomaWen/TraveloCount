@@ -15,6 +15,7 @@ import {
 } from '@/components/atoms';
 import { IcArrowL, IcSparkle, IcUsers } from '@/components/icons';
 import { TabBar } from '@/components/tab-bar';
+import { LoadingFallback, Skeleton, SkeletonCard } from '@/components/skeleton';
 import { TripContext, type TripDetail } from '@/lib/trip-context';
 
 export default function TripLayout({ children }: { children: ReactNode }) {
@@ -49,7 +50,66 @@ export default function TripLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!trip) return <main className="p-6 text-sm text-ink-3">Chargement…</main>;
+  if (!trip) {
+    return (
+      <main className="flex min-h-screen flex-col">
+        <header
+          className="relative overflow-hidden px-4 pb-4 pt-2 text-white"
+          style={{ background: 'linear-gradient(135deg, #2F4550, #586F7C)' }}
+        >
+          <DotGridOverlay opacity={0.14} />
+          <div className="relative flex items-center justify-between">
+            <button
+              onClick={() => router.back()}
+              aria-label="Retour"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-btn bg-white/15 text-white"
+            >
+              <IcArrowL size={18} sw={2} />
+            </button>
+            <div className="flex gap-2">
+              <div className="h-9 w-9 rounded-btn bg-white/15" />
+              <div className="h-9 w-9 rounded-btn bg-white/15" />
+            </div>
+          </div>
+          <div className="relative mt-4">
+            <Skeleton width={110} height={20} radius={999} />
+            <div className="mt-2.5">
+              <Skeleton width="70%" height={28} radius={6} />
+            </div>
+            <div className="mt-2">
+              <Skeleton width="50%" height={14} radius={4} />
+            </div>
+            <div className="mt-4 flex items-center gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Skeleton width={50} height={10} radius={3} />
+                <Skeleton width={70} height={18} radius={4} />
+              </div>
+              <div className="h-7 w-px bg-white/20" />
+              <div className="flex flex-col gap-1.5">
+                <Skeleton width={50} height={10} radius={3} />
+                <Skeleton width={70} height={18} radius={4} />
+              </div>
+            </div>
+          </div>
+        </header>
+        <nav className="flex gap-1 border-y border-line bg-surface p-1.5">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} height={40} className="flex-1" radius={10} />
+          ))}
+        </nav>
+        <LoadingFallback
+          onRetry={load}
+          skeleton={
+            <div className="flex flex-col gap-3 p-4">
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </div>
+          }
+        />
+      </main>
+    );
+  }
 
   const active = activeTabFromPath(pathname, trip.id);
 

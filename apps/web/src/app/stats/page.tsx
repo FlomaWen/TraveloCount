@@ -6,6 +6,7 @@ import { apiFetch } from '@/lib/api-client';
 import { Avatar, Card, Chip, Money } from '@/components/atoms';
 import { BottomNav } from '@/components/bottom-nav';
 import { IcSparkle } from '@/components/icons';
+import { LoadingFallback, Skeleton } from '@/components/skeleton';
 
 type Category = 'TRANSPORT' | 'LODGING' | 'RESTAURANT' | 'ACTIVITY' | 'OTHER';
 
@@ -106,12 +107,44 @@ export default function StatsPage() {
 
       {error ? <p className="px-5 text-sm text-neg">{error}</p> : null}
 
-      {!stats || stats.expenseCount === 0 ? (
+      {!stats ? (
+        <div className="px-4 pt-4">
+          <LoadingFallback
+            skeleton={
+              <div className="flex flex-col gap-3">
+                <div className="rounded-card bg-surface p-4 shadow-card">
+                  <div className="flex items-center justify-between">
+                    <Skeleton width={120} height={11} radius={3} />
+                    <Skeleton width={60} height={18} radius={999} />
+                  </div>
+                  <div className="mt-3 flex items-center justify-center">
+                    <Skeleton width={170} height={170} radius={9999} />
+                  </div>
+                  <div className="mt-3 flex flex-col gap-2">
+                    {[0, 1, 2, 3].map((i) => (
+                      <div key={i} className="flex items-center justify-between">
+                        <Skeleton width="50%" height={12} radius={3} />
+                        <Skeleton width={60} height={12} radius={3} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-card bg-surface p-4 shadow-card">
+                  <Skeleton width="40%" height={12} radius={3} />
+                  <div className="mt-3 flex items-end gap-1.5">
+                    {[40, 70, 30, 80, 55, 90, 60].map((h, i) => (
+                      <Skeleton key={i} width="100%" height={h} radius={4} className="flex-1" />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            }
+          />
+        </div>
+      ) : stats.expenseCount === 0 ? (
         <div className="px-4 pt-4">
           <Card className="text-center text-[13px] text-ink-3">
-            {stats?.expenseCount === 0
-              ? 'Pas encore de dépenses pour ce voyage.'
-              : 'Chargement…'}
+            Pas encore de dépenses pour ce voyage.
           </Card>
         </div>
       ) : (

@@ -56,3 +56,5 @@ CLAUDE.local.md
 *.tmp
 *.bak
 .cache/
+
+.docs/

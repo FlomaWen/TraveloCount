@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { formatDateRange } from '@/lib/format';
+import { LoadingFallback, Skeleton } from '@/components/skeleton';
 
 interface InvitePreview {
   trip: {
@@ -70,7 +71,26 @@ export default function InvitePage() {
   }
 
   if (!preview) {
-    return <main className="p-6 text-sm text-charcoal-400">Chargement…</main>;
+    return (
+      <main className="p-6">
+        <LoadingFallback
+          skeleton={
+            <div className="mx-auto max-w-md rounded-card bg-surface p-6 shadow-card">
+              <div className="flex flex-col items-center gap-3">
+                <Skeleton width={60} height={60} radius={9999} />
+                <Skeleton width="70%" height={20} radius={4} />
+                <Skeleton width="50%" height={14} radius={4} />
+                <Skeleton width="40%" height={12} radius={4} />
+              </div>
+              <div className="mt-6 flex flex-col gap-2">
+                <Skeleton width="100%" height={48} radius={12} />
+                <Skeleton width="100%" height={40} radius={12} />
+              </div>
+            </div>
+          }
+        />
+      </main>
+    );
   }
 
   return (
