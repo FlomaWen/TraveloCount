@@ -1,7 +1,8 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { ActivityType } from '@prisma/client';
+import { ActivityType, TripRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateItineraryItemDto } from './dto/create-item.dto';
+import { UpdateItineraryItemDto } from './dto/update-item.dto';
 
 @Injectable()
 export class ItineraryService {
@@ -51,11 +52,40 @@ export class ItineraryService {
     });
   }
 
+  async update(userId: string, tripId: string, itemId: string, dto: UpdateItineraryItemDto) {
+    const member = await this.prisma.tripMember.findUnique({
+      where: { tripId_userId: { tripId, userId } },
+    });
+    if (!member) throw new ForbiddenException('Not a member of this trip');
+    if (member.role !== TripRole.ADMIN) {
+      throw new ForbiddenException('Only admins can edit itinerary items');
+    }
+    const item = await this.prisma.itineraryItem.findUnique({ where: { id: itemId } });
+    if (!item || item.tripId !== tripId) throw new NotFoundException('Item not found');
+
+    return this.prisma.itineraryItem.update({
+      where: { id: itemId },
+      data: {
+        ...(dto.day !== undefined ? { day: dto.day } : {}),
+        ...(dto.time !== undefined ? { time: dto.time } : {}),
+        ...(dto.type !== undefined ? { type: dto.type } : {}),
+        ...(dto.title !== undefined ? { title: dto.title } : {}),
+        ...(dto.details !== undefined ? { details: dto.details } : {}),
+        ...(dto.address !== undefined ? { address: dto.address } : {}),
+        ...(dto.lat !== undefined ? { lat: dto.lat } : {}),
+        ...(dto.lng !== undefined ? { lng: dto.lng } : {}),
+      },
+    });
+  }
+
   async remove(userId: string, tripId: string, itemId: string) {
     const member = await this.prisma.tripMember.findUnique({
       where: { tripId_userId: { tripId, userId } },
     });
     if (!member) throw new ForbiddenException('Not a member of this trip');
+    if (member.role !== TripRole.ADMIN) {
+      throw new ForbiddenException('Only admins can delete itinerary items');
+    }
     const item = await this.prisma.itineraryItem.findUnique({ where: { id: itemId } });
     if (!item || item.tripId !== tripId) throw new NotFoundException('Item not found');
     await this.prisma.itineraryItem.delete({ where: { id: itemId } });

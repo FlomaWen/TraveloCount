@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { apiFetch } from '@/lib/api-client';
 import { Card, CatBadge, Divider, Money, categoryToIcon } from '@/components/atoms';
 import { IcFilter, IcPlus } from '@/components/icons';
-import { ExpenseFormModal } from '@/components/expense-form-modal';
+import { ExpenseFormModal, type ExpenseEditData } from '@/components/expense-form-modal';
 import { LoadingFallback, Skeleton, SkeletonCircle } from '@/components/skeleton';
 import { useTrip } from '@/lib/trip-context';
 
@@ -39,7 +39,20 @@ export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[] | null>(null);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('Tout');
   const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState<ExpenseEditData | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const me = trip.members.find((m) => m.id === session?.userId);
+  const isAdmin = me?.role === 'ADMIN';
+
+  const openEdit = async (expenseId: string) => {
+    try {
+      const detail = await apiFetch<ExpenseEditData>(`/trips/${trip.id}/expenses/${expenseId}`);
+      setEditing(detail);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur');
+    }
+  };
 
   const load = async () => {
     if (!session?.accessToken) return;
@@ -142,12 +155,20 @@ export default function ExpensesPage() {
                 </div>
               </div>
               <Card padding={0}>
-                {items.map((exp, i) => (
-                  <div key={exp.id}>
-                    <ExpenseRow expense={exp} currency={curr} myId={session?.userId} />
-                    {i < items.length - 1 ? <Divider inset={62} /> : null}
-                  </div>
-                ))}
+                {items.map((exp, i) => {
+                  const canEdit = isAdmin || exp.payer.id === session?.userId;
+                  return (
+                    <div key={exp.id}>
+                      <ExpenseRow
+                        expense={exp}
+                        currency={curr}
+                        myId={session?.userId}
+                        onClick={canEdit ? () => openEdit(exp.id) : undefined}
+                      />
+                      {i < items.length - 1 ? <Divider inset={62} /> : null}
+                    </div>
+                  );
+                })}
               </Card>
             </div>
           );
@@ -178,6 +199,29 @@ export default function ExpensesPage() {
           }}
         />
       ) : null}
+
+      {editing && session?.userId ? (
+        <ExpenseFormModal
+          tripId={trip.id}
+          tripCurrency={trip.currency}
+          defaultSplitMethod={trip.defaultSplitMethod}
+          members={trip.members}
+          currentUserId={session.userId}
+          expense={editing}
+          canDelete={isAdmin || editing.payer.id === session.userId}
+          onClose={() => setEditing(null)}
+          onCreated={() => {
+            setEditing(null);
+            load();
+            refresh();
+          }}
+          onDeleted={() => {
+            setEditing(null);
+            load();
+            refresh();
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -186,14 +230,43 @@ function ExpenseRow({
   expense,
   currency,
   myId,
+  onClick,
 }: {
   expense: Expense;
   currency: string;
   myId?: string;
+  onClick?: () => void;
 }) {
   const isMe = expense.payer.id === myId;
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex w-full items-center gap-3 px-3.5 py-3 text-left hover:bg-bg"
+      >
+        <ExpenseRowContent expense={expense} currency={currency} isMe={isMe} />
+      </button>
+    );
+  }
   return (
     <div className="flex items-center gap-3 px-3.5 py-3">
+      <ExpenseRowContent expense={expense} currency={currency} isMe={isMe} />
+    </div>
+  );
+}
+
+function ExpenseRowContent({
+  expense,
+  currency,
+  isMe,
+}: {
+  expense: Expense;
+  currency: string;
+  isMe: boolean;
+}) {
+  return (
+    <>
       <CatBadge name={categoryToIcon(expense.category)} />
       <div className="min-w-0 flex-1">
         <div className="truncate text-[13.5px] font-semibold leading-tight text-ink">
@@ -226,7 +299,7 @@ function ExpenseRow({
           {currency}
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

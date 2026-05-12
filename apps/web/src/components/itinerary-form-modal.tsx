@@ -19,25 +19,55 @@ interface GeocodeMatch {
   lng: number;
 }
 
+export interface ItineraryEditItem {
+  id: string;
+  day: number;
+  time: string | null;
+  type: (typeof TYPES)[number]['value'];
+  title: string;
+  details: string | null;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+}
+
 interface Props {
   tripId: string;
   totalDays: number | null;
   defaultDay: number;
+  item?: ItineraryEditItem;
+  canDelete?: boolean;
   onClose: () => void;
   onCreated: () => void;
+  onDeleted?: () => void;
 }
 
-export function ItineraryFormModal({ tripId, totalDays, defaultDay, onClose, onCreated }: Props) {
-  const [day, setDay] = useState(defaultDay);
-  const [time, setTime] = useState('');
-  const [type, setType] = useState<(typeof TYPES)[number]['value']>('ACTIVITY');
-  const [title, setTitle] = useState('');
-  const [details, setDetails] = useState('');
-  const [address, setAddress] = useState('');
+export function ItineraryFormModal({
+  tripId,
+  totalDays,
+  defaultDay,
+  item,
+  canDelete,
+  onClose,
+  onCreated,
+  onDeleted,
+}: Props) {
+  const isEdit = item !== undefined;
+  const [day, setDay] = useState(item?.day ?? defaultDay);
+  const [time, setTime] = useState(item?.time ?? '');
+  const [type, setType] = useState<(typeof TYPES)[number]['value']>(item?.type ?? 'ACTIVITY');
+  const [title, setTitle] = useState(item?.title ?? '');
+  const [details, setDetails] = useState(item?.details ?? '');
+  const [address, setAddress] = useState(item?.address ?? '');
   const [matches, setMatches] = useState<GeocodeMatch[]>([]);
-  const [picked, setPicked] = useState<GeocodeMatch | null>(null);
+  const [picked, setPicked] = useState<GeocodeMatch | null>(
+    item && item.lat !== null && item.lng !== null && item.address
+      ? { label: item.address, lat: item.lat, lng: item.lng }
+      : null,
+  );
   const [searching, setSearching] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const search = async () => {
@@ -62,23 +92,40 @@ export function ItineraryFormModal({ tripId, totalDays, defaultDay, onClose, onC
     setSubmitting(true);
     setError(null);
     try {
-      await apiFetch(`/trips/${tripId}/itinerary`, {
-        method: 'POST',
-        body: JSON.stringify({
-          day,
-          time: time || undefined,
-          type,
-          title,
-          details: details || undefined,
-          address: picked?.label ?? (address || undefined),
-          lat: picked?.lat,
-          lng: picked?.lng,
-        }),
+      const body = JSON.stringify({
+        day,
+        time: time || null,
+        type,
+        title,
+        details: details || null,
+        address: picked?.label ?? (address || null),
+        lat: picked?.lat ?? null,
+        lng: picked?.lng ?? null,
       });
+      if (isEdit && item) {
+        await apiFetch(`/trips/${tripId}/itinerary/${item.id}`, { method: 'PATCH', body });
+      } else {
+        await apiFetch(`/trips/${tripId}/itinerary`, { method: 'POST', body });
+      }
       onCreated();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur');
       setSubmitting(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!isEdit || !item || deleting) return;
+    if (!window.confirm('Supprimer cette étape ?')) return;
+    setError(null);
+    setDeleting(true);
+    try {
+      await apiFetch(`/trips/${tripId}/itinerary/${item.id}`, { method: 'DELETE' });
+      if (onDeleted) onDeleted();
+      else onCreated();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur');
+      setDeleting(false);
     }
   };
 
@@ -87,7 +134,7 @@ export function ItineraryFormModal({ tripId, totalDays, defaultDay, onClose, onC
   return (
     <Sheet
       onClose={onClose}
-      title="Nouvelle étape"
+      title={isEdit ? 'Modifier étape' : 'Nouvelle étape'}
       action={
         <button
           type="button"
@@ -95,7 +142,7 @@ export function ItineraryFormModal({ tripId, totalDays, defaultDay, onClose, onC
           disabled={submitting || !title}
           className="rounded-[9px] bg-ink px-3 py-[7px] text-[12px] font-bold text-white disabled:opacity-40"
         >
-          {submitting ? '…' : 'Ajouter'}
+          {submitting ? '…' : isEdit ? 'Enregistrer' : 'Ajouter'}
         </button>
       }
     >
@@ -232,6 +279,17 @@ export function ItineraryFormModal({ tripId, totalDays, defaultDay, onClose, onC
         </div>
 
         {error ? <p className="text-sm text-neg">{error}</p> : null}
+
+        {isEdit && canDelete ? (
+          <button
+            type="button"
+            onClick={remove}
+            disabled={deleting}
+            className="mt-2 inline-flex w-full items-center justify-center rounded-input border border-line2 bg-surface px-5 py-3 text-[13px] font-bold text-neg disabled:opacity-50"
+          >
+            {deleting ? 'Suppression…' : 'Supprimer cette étape'}
+          </button>
+        ) : null}
       </div>
     </Sheet>
   );

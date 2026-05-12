@@ -132,8 +132,18 @@ export class TripsService {
       throw new ForbiddenException('Only admins can update trip settings');
     }
 
+    if (dto.startDate && dto.endDate && new Date(dto.endDate) < new Date(dto.startDate)) {
+      throw new BadRequestException('endDate must be after startDate');
+    }
+
     const data: Prisma.TripUpdateInput = {};
+    if (dto.title !== undefined) data.title = dto.title;
+    if (dto.destination !== undefined) data.destination = dto.destination || null;
+    if (dto.startDate !== undefined) data.startDate = dto.startDate ? new Date(dto.startDate) : null;
+    if (dto.endDate !== undefined) data.endDate = dto.endDate ? new Date(dto.endDate) : null;
+    if (dto.ambiance !== undefined) data.ambiance = dto.ambiance;
     if (dto.currency !== undefined) data.currency = dto.currency.toUpperCase();
+    if (dto.budget !== undefined) data.budget = dto.budget === null ? null : dto.budget.toString();
     if (dto.defaultSplitMethod !== undefined) data.defaultSplitMethod = dto.defaultSplitMethod;
 
     return this.prisma.trip.update({ where: { id: tripId }, data });

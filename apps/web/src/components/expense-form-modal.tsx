@@ -27,14 +27,31 @@ interface Member {
   name: string;
 }
 
+export interface ExpenseEditData {
+  id: string;
+  label: string;
+  category: (typeof CATEGORIES)[number]['value'];
+  amount: number;
+  currency: string;
+  amountOriginal: number | null;
+  currencyOriginal: string | null;
+  date: string | Date;
+  splitMethod: (typeof SPLIT_METHODS)[number]['value'];
+  payer: { id: string };
+  shares: { userId: string; amount: number }[];
+}
+
 interface Props {
   tripId: string;
   tripCurrency: string;
   defaultSplitMethod?: (typeof SPLIT_METHODS)[number]['value'];
   members: Member[];
   currentUserId: string;
+  expense?: ExpenseEditData;
+  canDelete?: boolean;
   onClose: () => void;
   onCreated: () => void;
+  onDeleted?: () => void;
 }
 
 export function ExpenseFormModal({
@@ -43,19 +60,41 @@ export function ExpenseFormModal({
   defaultSplitMethod = 'EQUAL',
   members,
   currentUserId,
+  expense,
+  canDelete,
   onClose,
   onCreated,
+  onDeleted,
 }: Props) {
-  const [amount, setAmount] = useState('');
-  const [currency, setCurrency] = useState(tripCurrency);
-  const [label, setLabel] = useState('');
-  const [category, setCategory] = useState<(typeof CATEGORIES)[number]['value']>('OTHER');
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [payerId, setPayerId] = useState(currentUserId);
-  const [splitMethod, setSplitMethod] = useState<(typeof SPLIT_METHODS)[number]['value']>(defaultSplitMethod);
-  const [selected, setSelected] = useState<Set<string>>(new Set(members.map((m) => m.id)));
-  const [values, setValues] = useState<Record<string, string>>({});
+  const isEdit = expense !== undefined;
+  const initAmount = expense
+    ? (expense.amountOriginal ?? expense.amount).toString().replace('.', ',')
+    : '';
+  const initCurrency = expense ? expense.currencyOriginal ?? expense.currency : tripCurrency;
+  const initDate = expense
+    ? new Date(expense.date).toISOString().slice(0, 10)
+    : new Date().toISOString().slice(0, 10);
+  const initSelected = expense
+    ? new Set(expense.shares.map((s) => s.userId))
+    : new Set(members.map((m) => m.id));
+  const initValues: Record<string, string> = {};
+  if (expense) {
+    for (const s of expense.shares) initValues[s.userId] = s.amount.toString().replace('.', ',');
+  }
+
+  const [amount, setAmount] = useState(initAmount);
+  const [currency, setCurrency] = useState(initCurrency);
+  const [label, setLabel] = useState(expense?.label ?? '');
+  const [category, setCategory] = useState<(typeof CATEGORIES)[number]['value']>(expense?.category ?? 'OTHER');
+  const [date, setDate] = useState(initDate);
+  const [payerId, setPayerId] = useState(expense?.payer.id ?? currentUserId);
+  const [splitMethod, setSplitMethod] = useState<(typeof SPLIT_METHODS)[number]['value']>(
+    expense?.splitMethod ?? defaultSplitMethod,
+  );
+  const [selected, setSelected] = useState<Set<string>>(initSelected);
+  const [values, setValues] = useState<Record<string, string>>(initValues);
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const amountNum = parseFloat(amount.replace(',', '.')) || 0;
@@ -83,21 +122,23 @@ export function ExpenseFormModal({
     try {
       const participants = Array.from(selected).map((id) => ({
         userId: id,
-        value: splitMethod === 'EQUAL' ? undefined : Number(values[id] ?? 0),
+        value: splitMethod === 'EQUAL' ? undefined : Number((values[id] ?? '0').replace(',', '.')),
       }));
-      await apiFetch(`/trips/${tripId}/expenses`, {
-        method: 'POST',
-        body: JSON.stringify({
-          label,
-          amount: amountNum,
-          currency,
-          category,
-          date: new Date(date).toISOString(),
-          payerId,
-          splitMethod,
-          participants,
-        }),
+      const body = JSON.stringify({
+        label,
+        amount: amountNum,
+        currency,
+        category,
+        date: new Date(date).toISOString(),
+        payerId,
+        splitMethod,
+        participants,
       });
+      if (isEdit && expense) {
+        await apiFetch(`/trips/${tripId}/expenses/${expense.id}`, { method: 'PATCH', body });
+      } else {
+        await apiFetch(`/trips/${tripId}/expenses`, { method: 'POST', body });
+      }
       onCreated();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur');
@@ -105,10 +146,25 @@ export function ExpenseFormModal({
     }
   };
 
+  const remove = async () => {
+    if (!isEdit || !expense || deleting) return;
+    if (!window.confirm('Supprimer cette dépense ? Cette action est irréversible.')) return;
+    setError(null);
+    setDeleting(true);
+    try {
+      await apiFetch(`/trips/${tripId}/expenses/${expense.id}`, { method: 'DELETE' });
+      if (onDeleted) onDeleted();
+      else onCreated();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur');
+      setDeleting(false);
+    }
+  };
+
   return (
     <Sheet
       onClose={onClose}
-      title="Nouvelle dépense"
+      title={isEdit ? 'Modifier dépense' : 'Nouvelle dépense'}
       action={
         <button
           type="button"
@@ -116,7 +172,7 @@ export function ExpenseFormModal({
           disabled={submitting || !amountNum || !label || selected.size === 0 || exactMismatch}
           className="rounded-[9px] bg-ink px-3 py-[7px] text-[12px] font-bold text-white disabled:opacity-40"
         >
-          {submitting ? '…' : 'Ajouter'}
+          {submitting ? '…' : isEdit ? 'Enregistrer' : 'Ajouter'}
         </button>
       }
     >
@@ -347,6 +403,17 @@ export function ExpenseFormModal({
         </div>
 
         {error ? <p className="pt-3 text-[13px] text-neg">{error}</p> : null}
+
+        {isEdit && canDelete ? (
+          <button
+            type="button"
+            onClick={remove}
+            disabled={deleting}
+            className="mt-5 inline-flex w-full items-center justify-center rounded-input border border-line2 bg-surface px-5 py-3 text-[13px] font-bold text-neg disabled:opacity-50"
+          >
+            {deleting ? 'Suppression…' : 'Supprimer cette dépense'}
+          </button>
+        ) : null}
       </div>
     </Sheet>
   );

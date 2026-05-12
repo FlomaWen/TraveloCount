@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react';
 import { apiFetch } from '@/lib/api-client';
 import { Card, CatBadge, Divider } from '@/components/atoms';
 import { IcMap, IcPlus } from '@/components/icons';
-import { ItineraryFormModal } from '@/components/itinerary-form-modal';
+import { ItineraryFormModal, type ItineraryEditItem } from '@/components/itinerary-form-modal';
 import { LoadingFallback, Skeleton, SkeletonCircle } from '@/components/skeleton';
 import { useTrip } from '@/lib/trip-context';
 import type { CatIconName } from '@/components/icons';
@@ -33,8 +33,12 @@ export default function ItineraryPage() {
   const [items, setItems] = useState<ItineraryItem[] | null>(null);
   const [activeDay, setActiveDay] = useState(trip.dayNumber ?? 1);
   const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState<ItineraryEditItem | null>(null);
   const [showMap, setShowMap] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const me = trip.members.find((m) => m.id === session?.userId);
+  const isAdmin = me?.role === 'ADMIN';
 
   const load = async () => {
     if (!session?.accessToken) return;
@@ -151,9 +155,9 @@ export default function ItineraryPage() {
         </Card>
       ) : (
         <Card padding={0} className="mt-3">
-          {activeDayItems.map((it, i) => (
-            <div key={it.id}>
-              <div className="flex items-start gap-3 px-3.5 py-3">
+          {activeDayItems.map((it, i) => {
+            const inner = (
+              <>
                 <div className="w-12 flex-shrink-0 pt-0.5">
                   <div className="mono text-[12px] font-bold text-ink">{it.time ?? '—'}</div>
                 </div>
@@ -163,7 +167,7 @@ export default function ItineraryPage() {
                     <div className="w-0.5 flex-1 min-h-[14px] bg-line mt-1.5" />
                   ) : null}
                 </div>
-                <div className="min-w-0 flex-1 pb-1.5">
+                <div className="min-w-0 flex-1 pb-1.5 text-left">
                   <div className="text-[13.5px] font-semibold leading-tight text-ink">
                     {it.title}
                   </div>
@@ -174,10 +178,37 @@ export default function ItineraryPage() {
                     <div className="mt-0.5 text-[11px] text-mute">📍 {it.address}</div>
                   ) : null}
                 </div>
+              </>
+            );
+            return (
+              <div key={it.id}>
+                {isAdmin ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setEditing({
+                        id: it.id,
+                        day: it.day,
+                        time: it.time,
+                        type: it.type,
+                        title: it.title,
+                        details: it.details,
+                        address: it.address,
+                        lat: it.lat,
+                        lng: it.lng,
+                      })
+                    }
+                    className="flex w-full items-start gap-3 px-3.5 py-3 text-left hover:bg-bg"
+                  >
+                    {inner}
+                  </button>
+                ) : (
+                  <div className="flex items-start gap-3 px-3.5 py-3">{inner}</div>
+                )}
+                {i < activeDayItems.length - 1 ? <Divider inset={72} /> : null}
               </div>
-              {i < activeDayItems.length - 1 ? <Divider inset={72} /> : null}
-            </div>
-          ))}
+            );
+          })}
         </Card>
       )}
 
@@ -198,6 +229,25 @@ export default function ItineraryPage() {
           onClose={() => setShowModal(false)}
           onCreated={() => {
             setShowModal(false);
+            load();
+          }}
+        />
+      ) : null}
+
+      {editing ? (
+        <ItineraryFormModal
+          tripId={trip.id}
+          totalDays={trip.totalDays}
+          defaultDay={activeDay}
+          item={editing}
+          canDelete={isAdmin}
+          onClose={() => setEditing(null)}
+          onCreated={() => {
+            setEditing(null);
+            load();
+          }}
+          onDeleted={() => {
+            setEditing(null);
             load();
           }}
         />
