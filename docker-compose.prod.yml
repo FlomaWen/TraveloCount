@@ -23,6 +23,8 @@ services:
       dockerfile: apps/api/Dockerfile
     container_name: travelocount-api
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3001"
     environment:
       NODE_ENV: production
       API_PORT: 3001
@@ -46,11 +48,8 @@ services:
         condition: service_healthy
     networks:
       - internal
-      - web
 
   web:
-    ports:
-      - "3001:3000"
     build:
       context: .
       dockerfile: apps/web/Dockerfile
@@ -58,6 +57,8 @@ services:
         NEXT_PUBLIC_API_URL: ${PUBLIC_URL}
     container_name: travelocount-web
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: ${PUBLIC_URL}
@@ -68,8 +69,7 @@ services:
     depends_on:
       - api
     networks:
-      - web
+      - internal
 
 networks:
   internal:
-  web:
