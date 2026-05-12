@@ -80,7 +80,7 @@ export default function ItineraryPage() {
       <div className="flex gap-2 overflow-x-auto pb-2">
         {Array.from({ length: totalDays }, (_, i) => i + 1).map((d) => {
           const active = d === activeDay;
-          const dayItems = items.filter((it) => it.day === d);
+          const dayItems = safeItems.filter((it) => it.day === d);
           const date = dateForDay(trip.startDate, d);
           return (
             <button
