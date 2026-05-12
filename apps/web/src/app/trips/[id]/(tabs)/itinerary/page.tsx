@@ -7,6 +7,7 @@ import { apiFetch } from '@/lib/api-client';
 import { Card, CatBadge, Divider } from '@/components/atoms';
 import { IcMap, IcPlus } from '@/components/icons';
 import { ItineraryFormModal } from '@/components/itinerary-form-modal';
+import { LoadingFallback, Skeleton, SkeletonCircle } from '@/components/skeleton';
 import { useTrip } from '@/lib/trip-context';
 import type { CatIconName } from '@/components/icons';
 
@@ -29,7 +30,7 @@ interface ItineraryItem {
 export default function ItineraryPage() {
   const { trip } = useTrip();
   const { data: session } = useSession();
-  const [items, setItems] = useState<ItineraryItem[]>([]);
+  const [items, setItems] = useState<ItineraryItem[] | null>(null);
   const [activeDay, setActiveDay] = useState(trip.dayNumber ?? 1);
   const [showModal, setShowModal] = useState(false);
   const [showMap, setShowMap] = useState(false);
@@ -50,8 +51,9 @@ export default function ItineraryPage() {
     load();
   }, [session?.accessToken, trip.id]);
 
-  const totalDays = trip.totalDays ?? Math.max(...items.map((i) => i.day), 1);
-  const activeDayItems = items
+  const safeItems = items ?? [];
+  const totalDays = trip.totalDays ?? Math.max(...safeItems.map((i) => i.day), 1);
+  const activeDayItems = safeItems
     .filter((i) => i.day === activeDay)
     .sort((a, b) => (a.time ?? '99').localeCompare(b.time ?? '99'));
   const mapPoints = activeDayItems
@@ -118,7 +120,32 @@ export default function ItineraryPage() {
 
       {error ? <p className="mb-2 text-sm text-neg">{error}</p> : null}
 
-      {activeDayItems.length === 0 ? (
+      {items === null ? (
+        <LoadingFallback
+          onRetry={load}
+          skeleton={
+            <Card padding={0} className="mt-3">
+              {[0, 1, 2].map((i) => (
+                <div key={i}>
+                  <div className="flex items-start gap-3 px-3.5 py-3">
+                    <div className="w-12 flex-shrink-0 pt-0.5">
+                      <Skeleton width={36} height={12} radius={3} />
+                    </div>
+                    <SkeletonCircle size={32} />
+                    <div className="min-w-0 flex-1 pb-1.5">
+                      <Skeleton width="70%" height={13} radius={3} />
+                      <div className="mt-1">
+                        <Skeleton width="50%" height={11} radius={3} />
+                      </div>
+                    </div>
+                  </div>
+                  {i < 2 ? <Divider inset={72} /> : null}
+                </div>
+              ))}
+            </Card>
+          }
+        />
+      ) : activeDayItems.length === 0 ? (
         <Card className="mt-3 text-center text-sm text-ink-3">
           Aucune étape pour ce jour. Ajoute-en une avec le bouton +.
         </Card>

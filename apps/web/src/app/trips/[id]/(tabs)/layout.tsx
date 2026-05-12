@@ -13,7 +13,7 @@ import {
   DotGridOverlay,
   SkylineOverlay,
 } from '@/components/atoms';
-import { IcArrowL, IcSparkle, IcUsers } from '@/components/icons';
+import { IcArrowL, IcHome, IcUsers } from '@/components/icons';
 import { TabBar } from '@/components/tab-bar';
 import { LoadingFallback, Skeleton, SkeletonCard } from '@/components/skeleton';
 import { TripContext, type TripDetail } from '@/lib/trip-context';
@@ -132,17 +132,13 @@ export default function TripLayout({ children }: { children: ReactNode }) {
               <IcArrowL size={18} sw={2} />
             </button>
             <div className="flex gap-2">
-              <button
-                type="button"
-                aria-label="Discussion"
-                className="relative inline-flex h-9 w-9 items-center justify-center rounded-btn bg-white/15 text-white hover:bg-white/25"
+              <Link
+                href="/"
+                aria-label="Accueil"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-btn bg-white/15 text-white hover:bg-white/25"
               >
-                <IcSparkle size={18} sw={1.8} />
-                <span
-                  className="absolute h-[7px] w-[7px] rounded-full bg-accent"
-                  style={{ top: 8, right: 8, boxShadow: '0 0 0 2px rgba(47,69,80,0.6)' }}
-                />
-              </button>
+                <IcHome size={18} sw={1.8} />
+              </Link>
               <Link
                 href={`/trips/${trip.id}/members`}
                 aria-label="Membres"

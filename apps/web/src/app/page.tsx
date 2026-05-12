@@ -8,6 +8,7 @@ import { TripCardLarge, TripCardSmall } from '@/components/trip-card';
 import { Money, RoundBtn } from '@/components/atoms';
 import { IcSearch, IcBell, IcSwap, IcChart, IcPlus } from '@/components/icons';
 import { BottomNav } from '@/components/bottom-nav';
+import { Skeleton } from '@/components/skeleton';
 
 interface Trip {
   id: string;
@@ -146,14 +147,23 @@ export default function HomePage() {
         }
       />
       <div className="flex flex-col gap-2.5 px-4">
-        {upcoming.map((t) => (
-          <TripCardSmall key={t.id} trip={t} />
-        ))}
-        {upcoming.length === 0 && trips !== null ? (
-          <div className="rounded-card bg-surface p-4 text-center text-sm text-ink-3">
-            Aucun voyage à venir
-          </div>
-        ) : null}
+        {trips === null ? (
+          <>
+            <Skeleton width="100%" height={88} radius={20} />
+            <Skeleton width="100%" height={88} radius={20} />
+          </>
+        ) : (
+          <>
+            {upcoming.map((t) => (
+              <TripCardSmall key={t.id} trip={t} />
+            ))}
+            {upcoming.length === 0 ? (
+              <div className="rounded-card bg-surface p-4 text-center text-sm text-ink-3">
+                Aucun voyage à venir
+              </div>
+            ) : null}
+          </>
+        )}
       </div>
 
       {/* Passés */}

@@ -53,6 +53,7 @@ export const IcFilter = (p: IconProps) => <Icon {...p}><path d="M4 5h16M7 12h10M
 export const IcSparkle = (p: IconProps) => <Icon {...p}><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8L12 3zM19 15l.8 2 2 .8-2 .8L19 21l-.8-2-2-.8 2-.8.8-2z" /></Icon>;
 export const IcPin = (p: IconProps) => <Icon {...p}><path d="M12 22s7-7.5 7-13a7 7 0 10-14 0c0 5.5 7 13 7 13z" /><circle cx="12" cy="9" r="2.5" /></Icon>;
 export const IcEdit = (p: IconProps) => <Icon {...p}><path d="M4 20h4l11-11-4-4L4 16v4z" /><path d="M14 6l4 4" /></Icon>;
+export const IcHome = (p: IconProps) => <Icon {...p}><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /><path d="M10 20v-6h4v6" /></Icon>;
 
 export type CatIconName = 'plane' | 'bed' | 'fork' | 'car' | 'ticket' | 'pin' | 'receipt';
 

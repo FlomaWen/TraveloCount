@@ -6,6 +6,7 @@ import { apiFetch } from '@/lib/api-client';
 import { Card, CatBadge, Divider, Money, categoryToIcon } from '@/components/atoms';
 import { IcFilter, IcPlus } from '@/components/icons';
 import { ExpenseFormModal } from '@/components/expense-form-modal';
+import { LoadingFallback, Skeleton, SkeletonCircle } from '@/components/skeleton';
 import { useTrip } from '@/lib/trip-context';
 
 interface Expense {
@@ -35,7 +36,7 @@ const FILTER_TO_CAT: Record<string, Expense['category'] | null> = {
 export default function ExpensesPage() {
   const { trip, refresh } = useTrip();
   const { data: session } = useSession();
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [expenses, setExpenses] = useState<Expense[] | null>(null);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('Tout');
   const [showModal, setShowModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +56,11 @@ export default function ExpensesPage() {
   }, [session?.accessToken, trip.id]);
 
   const filtered =
-    filter === 'Tout' ? expenses : expenses.filter((e) => e.category === FILTER_TO_CAT[filter]);
+    expenses === null
+      ? []
+      : filter === 'Tout'
+      ? expenses
+      : expenses.filter((e) => e.category === FILTER_TO_CAT[filter]);
   const grouped = groupByDay(filtered);
   const curr = currencySymbol(trip.currency);
 
@@ -83,7 +88,43 @@ export default function ExpensesPage() {
 
       {error ? <p className="mb-2 text-sm text-neg">{error}</p> : null}
 
-      {grouped.length === 0 ? (
+      {expenses === null ? (
+        <LoadingFallback
+          onRetry={load}
+          skeleton={
+            <div className="flex flex-col gap-3.5">
+              {[0, 1, 2].map((g) => (
+                <div key={g}>
+                  <div className="flex items-center justify-between px-1 pb-2 pt-1.5">
+                    <Skeleton width={140} height={11} radius={3} />
+                    <Skeleton width={60} height={11} radius={3} />
+                  </div>
+                  <Card padding={0}>
+                    {[0, 1, 2].map((i) => (
+                      <div key={i}>
+                        <div className="flex items-center gap-3 px-3.5 py-3">
+                          <SkeletonCircle size={36} />
+                          <div className="flex-1">
+                            <Skeleton width="70%" height={13} radius={3} />
+                            <div className="mt-1.5">
+                              <Skeleton width="50%" height={11} radius={3} />
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <Skeleton width={56} height={14} radius={3} />
+                            <Skeleton width={40} height={10} radius={3} />
+                          </div>
+                        </div>
+                        {i < 2 ? <div className="ml-[62px] h-px bg-line" /> : null}
+                      </div>
+                    ))}
+                  </Card>
+                </div>
+              ))}
+            </div>
+          }
+        />
+      ) : grouped.length === 0 ? (
         <Card className="text-center text-sm text-ink-3">
           Aucune dépense {filter !== 'Tout' ? `dans cette catégorie` : 'pour l\'instant'}
         </Card>
