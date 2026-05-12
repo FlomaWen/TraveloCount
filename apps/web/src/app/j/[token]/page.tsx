@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { formatDateRange } from '@/lib/format';
 import { LoadingFallback, Skeleton } from '@/components/skeleton';
+import { WebviewGate } from '@/components/webview-gate';
 
 interface InvitePreview {
   trip: {
@@ -19,7 +20,7 @@ interface InvitePreview {
   expiresAt: string;
 }
 
-export default function InvitePage() {
+function InvitePageContent() {
   const params = useParams<{ token: string }>();
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -127,5 +128,13 @@ export default function InvitePage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function InvitePage() {
+  return (
+    <WebviewGate>
+      <InvitePageContent />
+    </WebviewGate>
   );
 }

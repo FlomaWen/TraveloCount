@@ -3,6 +3,7 @@
 import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
+import { WebviewGate } from '@/components/webview-gate';
 
 const SLIDES = [
   {
@@ -144,8 +145,10 @@ function SlideArt({ name }: { name: 'plan' | 'expenses' | 'balance' }) {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<main className="min-h-screen bg-ink" />}>
-      <LoginContent />
-    </Suspense>
+    <WebviewGate>
+      <Suspense fallback={<main className="min-h-screen bg-ink" />}>
+        <LoginContent />
+      </Suspense>
+    </WebviewGate>
   );
 }
