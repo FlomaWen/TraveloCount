@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/api-client';
 import { TripCardLarge, TripCardSmall } from '@/components/trip-card';
-import { Money, RoundBtn } from '@/components/atoms';
-import { IcSearch, IcBell, IcSwap, IcChart, IcPlus } from '@/components/icons';
+import { Money } from '@/components/atoms';
+import { IcBell, IcSwap, IcPlus } from '@/components/icons';
 import { BottomNav } from '@/components/bottom-nav';
 import { Skeleton } from '@/components/skeleton';
 
@@ -52,9 +52,6 @@ export default function HomePage() {
           <h1 className="mt-0.5 text-h1-screen text-ink">TraveloCount</h1>
         </div>
         <div className="flex gap-2">
-          <RoundBtn aria-label="Rechercher">
-            <IcSearch size={18} sw={1.8} />
-          </RoundBtn>
           <Link
             href="/activity"
             aria-label="Activité"
@@ -103,13 +100,6 @@ export default function HomePage() {
               >
                 <IcSwap size={15} sw={2} />
                 Régler les comptes
-              </button>
-              <button
-                type="button"
-                className="flex h-[38px] flex-1 items-center justify-center gap-1.5 rounded-btn border border-white/20 text-[13px] font-semibold text-white"
-              >
-                <IcChart size={15} sw={1.8} />
-                Voir le détail
               </button>
             </div>
           </div>

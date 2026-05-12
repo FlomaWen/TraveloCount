@@ -123,6 +123,56 @@ export class TripsService {
     };
   }
 
+  async leave(userId: string, tripId: string) {
+    const member = await this.prisma.tripMember.findUnique({
+      where: { tripId_userId: { tripId, userId } },
+    });
+    if (!member) throw new NotFoundException('Trip not found');
+
+    return this.prisma.$transaction(async (tx) => {
+      const memberCount = await tx.tripMember.count({ where: { tripId } });
+      if (memberCount === 1) {
+        await tx.trip.delete({ where: { id: tripId } });
+        return { left: true, tripDeleted: true };
+      }
+
+      if (member.role === TripRole.ADMIN) {
+        const otherAdmins = await tx.tripMember.count({
+          where: { tripId, role: TripRole.ADMIN, NOT: { userId } },
+        });
+        if (otherAdmins === 0) {
+          const oldest = await tx.tripMember.findFirst({
+            where: { tripId, NOT: { userId } },
+            orderBy: { joinedAt: 'asc' },
+          });
+          if (oldest) {
+            await tx.tripMember.update({
+              where: { tripId_userId: { tripId, userId: oldest.userId } },
+              data: { role: TripRole.ADMIN },
+            });
+          }
+        }
+      }
+
+      await tx.tripMember.delete({
+        where: { tripId_userId: { tripId, userId } },
+      });
+      return { left: true, tripDeleted: false };
+    });
+  }
+
+  async remove(actorId: string, tripId: string) {
+    const member = await this.prisma.tripMember.findUnique({
+      where: { tripId_userId: { tripId, userId: actorId } },
+    });
+    if (!member) throw new NotFoundException('Trip not found');
+    if (member.role !== TripRole.ADMIN) {
+      throw new ForbiddenException('Only admins can delete a trip');
+    }
+    await this.prisma.trip.delete({ where: { id: tripId } });
+    return { deleted: true };
+  }
+
   async update(actorId: string, tripId: string, dto: UpdateTripDto) {
     const member = await this.prisma.tripMember.findUnique({
       where: { tripId_userId: { tripId, userId: actorId } },

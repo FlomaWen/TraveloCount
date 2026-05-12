@@ -19,13 +19,27 @@ interface Member {
   role: 'ADMIN' | 'MEMBER';
 }
 
+type TripAmbiance = 'CITY_BREAK' | 'MOUNTAIN' | 'BEACH' | 'ROAD_TRIP';
+
 interface TripDetail {
   id: string;
   title: string;
+  destination: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  ambiance: TripAmbiance | null;
   currency: string;
+  budget: number | null;
   defaultSplitMethod: SplitMethod;
   members: Member[];
 }
+
+const AMBIANCE_LABELS: Record<TripAmbiance, string> = {
+  CITY_BREAK: 'City break',
+  MOUNTAIN: 'Montagne',
+  BEACH: 'Plage',
+  ROAD_TRIP: 'Road trip',
+};
 
 const CURRENCIES: { code: string; symbol: string; label: string }[] = [
   { code: 'EUR', symbol: '€', label: 'Euro' },
@@ -49,7 +63,9 @@ export default function MembersPage() {
   const [trip, setTrip] = useState<TripDetail | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [sheet, setSheet] = useState<'currency' | 'split' | null>(null);
+  const [sheet, setSheet] = useState<'currency' | 'split' | 'edit' | null>(null);
+  const [leaving, setLeaving] = useState(false);
+  const [deletingTrip, setDeletingTrip] = useState(false);
 
   const load = () => {
     if (!session?.accessToken || !params?.id) return;
@@ -77,7 +93,55 @@ export default function MembersPage() {
     }
   };
 
-  const updateTrip = async (patch: Partial<Pick<TripDetail, 'currency' | 'defaultSplitMethod'>>) => {
+  const deleteTrip = async () => {
+    if (!trip || deletingTrip) return;
+    if (
+      !window.confirm(
+        `Supprimer définitivement "${trip.title}" et toutes ses données (dépenses, itinéraire, documents) ?`,
+      )
+    )
+      return;
+    setDeletingTrip(true);
+    setError(null);
+    try {
+      await apiFetch(`/trips/${trip.id}`, { method: 'DELETE' });
+      router.push('/');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur');
+      setDeletingTrip(false);
+    }
+  };
+
+  const leaveTrip = async () => {
+    if (!trip || leaving) return;
+    const lastMember = trip.members.length === 1;
+    const msg = lastMember
+      ? 'Tu es seul·e dans ce voyage : le quitter le supprimera définitivement. Confirmer ?'
+      : 'Quitter ce voyage ? Tes dépenses et soldes restent visibles aux autres membres.';
+    if (!window.confirm(msg)) return;
+    setLeaving(true);
+    setError(null);
+    try {
+      await apiFetch(`/trips/${trip.id}/leave`, { method: 'DELETE' });
+      router.push('/');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur');
+      setLeaving(false);
+    }
+  };
+
+  const updateTrip = async (
+    patch: Partial<{
+      title: string;
+      destination: string | null;
+      startDate: string | null;
+      endDate: string | null;
+      ambiance: TripAmbiance | null;
+      currency: string;
+      budget: number | null;
+      defaultSplitMethod: SplitMethod;
+    }>,
+  ) => {
     if (!trip) return;
     setError(null);
     try {
@@ -238,12 +302,35 @@ export default function MembersPage() {
           ) : null}
         </div>
 
+        {isAdmin ? (
+          <button
+            type="button"
+            onClick={() => setSheet('edit')}
+            className="mt-2 inline-flex items-center justify-center rounded-input bg-ink px-5 py-3 text-[14px] font-bold text-white"
+          >
+            Modifier le voyage
+          </button>
+        ) : null}
+
         <button
           type="button"
-          className="mt-2 inline-flex items-center justify-center rounded-input border border-line2 bg-surface px-5 py-3 text-[14px] font-bold text-neg"
+          onClick={leaveTrip}
+          disabled={leaving}
+          className="mt-2 inline-flex items-center justify-center rounded-input border border-line2 bg-surface px-5 py-3 text-[14px] font-bold text-neg disabled:opacity-50"
         >
-          Quitter le voyage
+          {leaving ? 'Sortie en cours…' : 'Quitter le voyage'}
         </button>
+
+        {isAdmin ? (
+          <button
+            type="button"
+            onClick={deleteTrip}
+            disabled={deletingTrip}
+            className="mt-1 inline-flex items-center justify-center rounded-input border border-neg/40 bg-surface px-5 py-3 text-[13px] font-bold text-neg disabled:opacity-50"
+          >
+            {deletingTrip ? 'Suppression…' : 'Supprimer le voyage'}
+          </button>
+        ) : null}
       </div>
 
       {sheet === 'currency' ? (
@@ -294,7 +381,148 @@ export default function MembersPage() {
           </div>
         </Sheet>
       ) : null}
+
+      {sheet === 'edit' ? (
+        <EditTripSheet trip={trip} onClose={() => setSheet(null)} onSave={updateTrip} />
+      ) : null}
     </main>
+  );
+}
+
+function EditTripSheet({
+  trip,
+  onClose,
+  onSave,
+}: {
+  trip: TripDetail;
+  onClose: () => void;
+  onSave: (patch: {
+    title?: string;
+    destination?: string | null;
+    startDate?: string | null;
+    endDate?: string | null;
+    ambiance?: TripAmbiance | null;
+    budget?: number | null;
+  }) => Promise<void> | void;
+}) {
+  const [title, setTitle] = useState(trip.title);
+  const [destination, setDestination] = useState(trip.destination ?? '');
+  const [startDate, setStartDate] = useState(
+    trip.startDate ? new Date(trip.startDate).toISOString().slice(0, 10) : '',
+  );
+  const [endDate, setEndDate] = useState(
+    trip.endDate ? new Date(trip.endDate).toISOString().slice(0, 10) : '',
+  );
+  const [ambiance, setAmbiance] = useState<TripAmbiance | ''>(trip.ambiance ?? '');
+  const [budget, setBudget] = useState(trip.budget !== null ? String(trip.budget) : '');
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    const budgetNum = budget.trim() === '' ? null : Number(budget.replace(',', '.'));
+    await onSave({
+      title: title.trim(),
+      destination: destination.trim() || null,
+      startDate: startDate || null,
+      endDate: endDate || null,
+      ambiance: ambiance || null,
+      budget: budgetNum && !Number.isNaN(budgetNum) ? budgetNum : null,
+    });
+    setSaving(false);
+  };
+
+  return (
+    <Sheet
+      onClose={onClose}
+      title="Modifier le voyage"
+      action={
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving || title.trim().length === 0}
+          className="rounded-[9px] bg-ink px-3 py-[7px] text-[12px] font-bold text-white disabled:opacity-40"
+        >
+          {saving ? '…' : 'Enregistrer'}
+        </button>
+      }
+    >
+      <div className="space-y-4 px-4 pb-6 pt-2">
+        <label className="block">
+          <Label>Titre</Label>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            maxLength={100}
+            className="input"
+          />
+        </label>
+
+        <label className="block">
+          <Label>Destination</Label>
+          <input
+            value={destination}
+            onChange={(e) => setDestination(e.target.value)}
+            maxLength={120}
+            placeholder="Ex. Lisbonne, Portugal"
+            className="input"
+          />
+        </label>
+
+        <div className="flex gap-2">
+          <label className="flex-1">
+            <Label>Début</Label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="input"
+            />
+          </label>
+          <label className="flex-1">
+            <Label>Fin</Label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="input"
+            />
+          </label>
+        </div>
+
+        <div>
+          <Label>Ambiance</Label>
+          <div className="flex flex-wrap gap-2">
+            {(Object.keys(AMBIANCE_LABELS) as TripAmbiance[]).map((amb) => {
+              const active = amb === ambiance;
+              return (
+                <button
+                  key={amb}
+                  type="button"
+                  onClick={() => setAmbiance(active ? '' : amb)}
+                  className={`rounded-pill px-3 py-1.5 text-[12.5px] font-semibold ${
+                    active ? 'bg-ink text-white' : 'bg-bg text-ink-2'
+                  }`}
+                >
+                  {AMBIANCE_LABELS[amb]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <label className="block">
+          <Label>Budget ({trip.currency})</Label>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={budget}
+            onChange={(e) => setBudget(e.target.value.replace(/[^\d.,]/g, ''))}
+            placeholder="Laisser vide pour aucun budget"
+            className="input"
+          />
+        </label>
+      </div>
+    </Sheet>
   );
 }
 

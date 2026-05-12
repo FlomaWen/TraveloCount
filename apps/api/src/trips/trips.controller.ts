@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/jwt.strategy';
@@ -34,6 +34,16 @@ export class TripsController {
     @Body() dto: UpdateTripDto,
   ) {
     return this.trips.update(user.id, id, dto);
+  }
+
+  @Delete(':id/leave')
+  leave(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.trips.leave(user.id, id);
+  }
+
+  @Delete(':id')
+  remove(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.trips.remove(user.id, id);
   }
 
   @Patch(':id/members/:userId')
