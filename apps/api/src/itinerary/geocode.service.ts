@@ -22,7 +22,7 @@ export class GeocodeService {
     }
     const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(query)}`;
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'TraveloCount/0.1 (dev)' },
+      headers: { 'User-Agent': 'WeSplit/0.1 (dev)' },
     }).catch(() => null);
     if (!res || !res.ok) throw new ServiceUnavailableException('Geocoding service unavailable');
     const data = (await res.json()) as NominatimResult[];

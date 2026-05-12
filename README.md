@@ -1,4 +1,4 @@
-# TraveloCount
+# WeSplit
 
 Application de gestion de voyages en groupe : itinéraires partagés, dépenses, comptes et règlements.
 

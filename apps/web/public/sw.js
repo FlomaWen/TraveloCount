@@ -1,5 +1,5 @@
 // Service Worker — cache documents for offline access
-const CACHE = 'travelocount-docs-v1';
+const CACHE = 'wesplit-docs-v1';
 const DOC_PATTERN = /\/api\/documents\/[^/?#]+(\?|$)/;
 
 self.addEventListener('install', (event) => {

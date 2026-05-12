@@ -15,7 +15,7 @@ export class MailService {
     const port = Number(this.config.get<string>('SMTP_PORT') ?? 587);
     const user = this.config.get<string>('SMTP_USER');
     const password = this.config.get<string>('SMTP_PASSWORD');
-    this.from = this.config.get<string>('MAIL_FROM') ?? 'TraveloCount <no-reply@travelocount.local>';
+    this.from = this.config.get<string>('MAIL_FROM') ?? 'WeSplit <no-reply@wesplit.local>';
     this.enabled = Boolean(host);
 
     this.transporter = this.enabled
@@ -34,7 +34,7 @@ export class MailService {
     inviteUrl: string;
     inviterName: string;
   }) {
-    const subject = `${opts.inviterName} t'invite à rejoindre "${opts.tripTitle}" sur TraveloCount`;
+    const subject = `${opts.inviterName} t'invite à rejoindre "${opts.tripTitle}" sur WeSplit`;
     const html = renderInviteEmail(opts);
     const text = `${opts.inviterName} t'invite à rejoindre "${opts.tripTitle}". Rejoins le voyage : ${opts.inviteUrl}`;
 
@@ -71,7 +71,7 @@ function renderInviteEmail({
 <body style="margin:0;padding:24px;background:#F4F4F9;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:#0C1A22">
   <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:480px;margin:0 auto;background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 8px 24px rgba(12,26,34,0.06)">
     <tr><td style="background:#0C1A22;padding:32px 28px;color:#fff">
-      <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#B8DBD9">TraveloCount</div>
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#B8DBD9">WeSplit</div>
       <div style="margin-top:8px;font-size:22px;font-weight:700;letter-spacing:-0.02em">Invitation au voyage</div>
     </td></tr>
     <tr><td style="padding:28px">

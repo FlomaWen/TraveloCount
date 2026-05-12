@@ -161,9 +161,9 @@ export function AboutSheet({ onClose }: { onClose: () => void }) {
     <Sheet title="À propos" onClose={onClose}>
       <div className="space-y-3 px-4 pb-6 pt-2 text-center">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-card-lg bg-ink text-white">
-          <span className="mono text-[20px] font-bold">TC</span>
+          <span className="mono text-[20px] font-bold">WS</span>
         </div>
-        <div className="text-[18px] font-bold text-ink">TraveloCount</div>
+        <div className="text-[18px] font-bold text-ink">WeSplit</div>
         <div className="mono text-[12px] text-ink-3">v0.1.0 · dev build</div>
         <p className="mx-auto max-w-[280px] text-[12.5px] leading-[1.5] text-ink-2">
           Application de gestion de voyages en groupe : itinéraires partagés, dépenses, comptes et règlements.

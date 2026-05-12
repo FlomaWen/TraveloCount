@@ -50,7 +50,7 @@ export default function HomePage() {
       <header className="flex items-center justify-between px-5 pb-1.5 pt-3">
         <div>
           <div className="label-up">Bonjour {firstName}</div>
-          <h1 className="mt-0.5 text-h1-screen text-ink">TraveloCount</h1>
+          <h1 className="mt-0.5 text-h1-screen text-ink">WeSplit</h1>
         </div>
         <div className="flex gap-2">
           <Link

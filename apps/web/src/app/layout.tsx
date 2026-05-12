@@ -18,7 +18,7 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'TraveloCount',
+  title: 'WeSplit',
   description: 'Organise tes voyages en groupe.',
 };
 
