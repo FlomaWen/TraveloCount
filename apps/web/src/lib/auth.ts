@@ -9,12 +9,17 @@ interface ApiTokens {
 }
 
 async function exchangeWithApi(idToken: string): Promise<ApiTokens> {
+  console.log('[auth] calling API auth/google, apiUrl=', env.apiUrl, 'idToken len=', idToken?.length);
   const res = await fetch(`${env.apiUrl}/api/auth/google`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ idToken }),
   });
-  if (!res.ok) throw new Error(`API auth failed: ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    console.error('[auth] API auth failed status=', res.status, 'body=', body);
+    throw new Error(`API auth failed: ${res.status}`);
+  }
   return res.json();
 }
 
@@ -39,6 +44,9 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: 'jwt' },
   callbacks: {
     async jwt({ token, account }) {
+      if (account) {
+        console.log('[auth] account keys:', Object.keys(account), 'id_token present:', !!account.id_token, 'id_token length:', account.id_token?.length);
+      }
       if (account?.id_token) {
         try {
           const tokens = await exchangeWithApi(account.id_token);
