@@ -38,7 +38,9 @@ function formatDates(start: string | Date | null, end: string | Date | null): st
 function tripDays(start: string | Date | null, end: string | Date | null): { current: number; total: number } | null {
   if (!start || !end) return null;
   const s = new Date(start).getTime();
-  const e = new Date(end).getTime();
+  const endDate = new Date(end);
+  endDate.setUTCHours(23, 59, 59, 999);
+  const e = endDate.getTime();
   const now = Date.now();
   const total = Math.floor((e - s) / (24 * 3600 * 1000)) + 1;
   if (now < s || now > e) return null;
