@@ -32,6 +32,7 @@ export class TripsService {
           ambiance: dto.ambiance,
           currency: dto.currency ?? 'EUR',
           budget: dto.budget?.toString(),
+          createdById: userId,
           members: {
             create: { userId, role: TripRole.ADMIN },
           },
@@ -81,6 +82,7 @@ export class TripsService {
         currency: trip.currency,
         budget: trip.budget ? Number(trip.budget) : null,
         hasCover: !!trip.coverPath,
+        createdById: trip.createdById,
         totalSpent,
         userBalance,
         status,
@@ -125,6 +127,7 @@ export class TripsService {
       defaultSplitMethod: trip.defaultSplitMethod,
       budget: trip.budget ? Number(trip.budget) : null,
       hasCover: !!trip.coverPath,
+      createdById: trip.createdById,
       totalSpent,
       userBalance,
       status: computeStatus(trip.startDate, trip.endDate, now),
@@ -301,6 +304,14 @@ export class TripsService {
     if (!actor) throw new NotFoundException('Trip not found');
     if (actor.role !== TripRole.ADMIN) {
       throw new ForbiddenException('Only admins can change roles');
+    }
+
+    const trip = await this.prisma.trip.findUnique({
+      where: { id: tripId },
+      select: { createdById: true },
+    });
+    if (trip?.createdById === targetUserId) {
+      throw new ForbiddenException("The trip creator's role cannot be changed");
     }
 
     const target = await this.prisma.tripMember.findUnique({

@@ -78,6 +78,7 @@ model User {
   invitesCreated   Invite[]         @relation("InviteCreator")
   settlementsSent  Settlement[]     @relation("SettlementFrom")
   settlementsRecv  Settlement[]     @relation("SettlementTo")
+  tripsCreated     Trip[]           @relation("TripCreator")
 }
 
 model Trip {
@@ -91,8 +92,11 @@ model Trip {
   budget              Decimal?      @db.Decimal(12, 2)
   defaultSplitMethod  SplitMethod   @default(EQUAL)
   coverPath           String?
+  createdById         String?
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
+
+  createdBy User? @relation("TripCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
   members        TripMember[]
   expenses       Expense[]

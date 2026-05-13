@@ -33,6 +33,7 @@ interface TripDetail {
   budget: number | null;
   defaultSplitMethod: SplitMethod;
   hasCover: boolean;
+  createdById: string | null;
   members: Member[];
 }
 
@@ -259,7 +260,9 @@ export default function MembersPage() {
                     </div>
                     <div className="truncate text-[11.5px] font-medium text-ink-3">{m.email}</div>
                   </div>
-                  {isAdmin && m.id !== session?.userId ? (
+                  {trip.createdById === m.id ? (
+                    <Chip tone="accent" size="sm">★ Créateur</Chip>
+                  ) : isAdmin && m.id !== session?.userId ? (
                     <RoleMenu
                       current={m.role}
                       busy={busy === m.id}

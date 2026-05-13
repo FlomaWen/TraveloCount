@@ -21,6 +21,7 @@ export interface TripDetail {
   defaultSplitMethod: 'EQUAL' | 'SHARES' | 'EXACT';
   budget: number | null;
   hasCover: boolean;
+  createdById: string | null;
   totalSpent: number;
   userBalance: number;
   status: 'IN_PROGRESS' | 'UPCOMING' | 'PAST' | 'UNDATED';
