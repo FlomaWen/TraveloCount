@@ -224,4 +224,73 @@ export class SettlementsService {
       data: { status: SettlementStatus.CANCELLED, cancelledAt: new Date() },
     });
   }
+
+  /**
+   * After an expense change, auto-cancel PENDING settlements that no longer
+   * make sense. For each PENDING pair fromUser→toUser, we check the remaining
+   * net debt (with CONFIRMED counted as paid). If fromUser no longer owes
+   * toUser, every PENDING between them gets CANCELLED.
+   */
+  async reconcilePendingForTrip(tripId: string) {
+    const trip = await this.prisma.trip.findUnique({
+      where: { id: tripId },
+      select: {
+        members: { select: { userId: true } },
+        expenses: {
+          select: {
+            payerId: true,
+            amount: true,
+            shares: { select: { userId: true, amount: true } },
+          },
+        },
+        settlements: {
+          select: {
+            id: true,
+            fromUserId: true,
+            toUserId: true,
+            amount: true,
+            status: true,
+          },
+        },
+      },
+    });
+    if (!trip) return;
+
+    const memberIds = trip.members.map((m) => m.userId);
+    const expenses = trip.expenses.map((e) => ({
+      payerId: e.payerId,
+      amount: Number(e.amount),
+      shares: e.shares.map((s) => ({ userId: s.userId, amount: Number(s.amount) })),
+    }));
+    const confirmedOnly = trip.settlements
+      .filter((s) => s.status === SettlementStatus.CONFIRMED)
+      .map((s) => ({
+        fromUserId: s.fromUserId,
+        toUserId: s.toUserId,
+        amount: Number(s.amount),
+      }));
+    const balances = computeBalances(memberIds, expenses, confirmedOnly);
+    const balanceByUser = new Map(balances.map((b) => [b.userId, b.amount]));
+
+    const pendings = trip.settlements.filter((s) => s.status === SettlementStatus.PENDING);
+
+    const toCancel: string[] = [];
+    for (const p of pendings) {
+      // If the sender's balance is >= 0, they no longer owe anyone in this
+      // trip on net. Their pending payment to anyone is moot.
+      const senderBalance = balanceByUser.get(p.fromUserId) ?? 0;
+      const receiverBalance = balanceByUser.get(p.toUserId) ?? 0;
+      // Simpler heuristic: if sender no longer has a debt, OR receiver is no
+      // longer a creditor, cancel the pending.
+      if (senderBalance >= -0.005 || receiverBalance <= 0.005) {
+        toCancel.push(p.id);
+      }
+    }
+
+    if (toCancel.length === 0) return;
+    await this.prisma.settlement.updateMany({
+      where: { id: { in: toCancel } },
+      data: { status: SettlementStatus.CANCELLED, cancelledAt: new Date() },
+    });
+  }
 }

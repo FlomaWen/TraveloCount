@@ -7,6 +7,7 @@ import {
 import { ActivityType, TripRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ExchangeService } from '../exchange/exchange.service';
+import { SettlementsService } from '../settlements/settlements.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { computeShares } from './split';
@@ -16,6 +17,7 @@ export class ExpensesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly exchange: ExchangeService,
+    private readonly settlements: SettlementsService,
   ) {}
 
   async create(userId: string, tripId: string, dto: CreateExpenseDto) {
@@ -141,7 +143,7 @@ export class ExpensesService {
     const nextSplitMethod = dto.splitMethod ?? expense.splitMethod;
     const participants = dto.participants;
 
-    return this.prisma.$transaction(async (tx) => {
+    const updated = await this.prisma.$transaction(async (tx) => {
       await tx.expense.update({
         where: { id: expenseId },
         data: {
@@ -181,6 +183,9 @@ export class ExpensesService {
 
       return tx.expense.findUnique({ where: { id: expenseId }, include: { shares: true } });
     });
+
+    await this.settlements.reconcilePendingForTrip(tripId);
+    return updated;
   }
 
   async remove(userId: string, tripId: string, expenseId: string) {
@@ -197,6 +202,7 @@ export class ExpensesService {
       throw new ForbiddenException('Only the payer or an admin can delete this expense');
     }
     await this.prisma.expense.delete({ where: { id: expenseId } });
+    await this.settlements.reconcilePendingForTrip(tripId);
     return { deleted: true };
   }
 
