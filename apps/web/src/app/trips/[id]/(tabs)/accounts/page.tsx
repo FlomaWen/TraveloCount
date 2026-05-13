@@ -33,7 +33,7 @@ interface SettlementRecord {
 }
 
 export default function AccountsPage() {
-  const { trip } = useTrip();
+  const { trip, refresh } = useTrip();
   const { data: session } = useSession();
   const [data, setData] = useState<BalancesResponse | null>(null);
   const [settlementsHistory, setSettlementsHistory] = useState<SettlementRecord[]>([]);
@@ -52,13 +52,18 @@ export default function AccountsPage() {
 
   useEffect(load, [session?.accessToken, trip.id]);
 
-  const markMineAsSent = async () => {
+  const sendOne = async (toUserId: string, amount: number) => {
+    const key = `send-${toUserId}`;
     if (busy) return;
-    setBusy('mark-sent');
+    setBusy(key);
     setError(null);
     try {
-      await apiFetch(`/trips/${trip.id}/settlements/mark-mine-sent`, { method: 'POST' });
+      await apiFetch(`/trips/${trip.id}/settlements`, {
+        method: 'POST',
+        body: JSON.stringify({ toUserId, amount }),
+      });
       load();
+      refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur');
     } finally {
@@ -76,6 +81,7 @@ export default function AccountsPage() {
         await apiFetch(`/trips/${trip.id}/settlements/${id}/${action}`, { method: 'PATCH' });
       }
       load();
+      refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur');
     } finally {
@@ -233,27 +239,48 @@ export default function AccountsPage() {
         <Card padding={0}>
           {data.settlements.map((s, i) => {
             const isMine = s.from.id === session?.userId;
+            const alreadyPending = isMine
+              ? myPendingSent.find((p) => p.to.id === s.to.id)
+              : null;
+            const sendKey = `send-${s.to.id}`;
             return (
               <div key={i}>
-                <div className="flex items-center gap-3 px-3.5 py-3">
-                  <Avatar id={s.from.id} name={s.from.name} size={32} />
-                  <IcArrowR size={16} sw={2.2} className="text-ink-3" />
-                  <Avatar id={s.to.id} name={s.to.name} size={32} />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[13px] font-semibold text-ink">
-                      {isMine ? 'Tu' : s.from.name.split(' ')[0]} → {s.to.name.split(' ')[0]}
+                <div className="flex flex-col gap-2 px-3.5 py-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar id={s.from.id} name={s.from.name} size={32} />
+                    <IcArrowR size={16} sw={2.2} className="text-ink-3" />
+                    <Avatar id={s.to.id} name={s.to.name} size={32} />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-semibold text-ink">
+                        {isMine ? 'Tu' : s.from.name.split(' ')[0]} → {s.to.name.split(' ')[0]}
+                      </div>
+                      <div className="mt-0.5 text-[11.5px] font-medium text-ink-3">
+                        {alreadyPending
+                          ? 'Envoyé · attend confirmation'
+                          : isMine
+                          ? 'Virement à effectuer'
+                          : 'En attente'}
+                      </div>
                     </div>
-                    <div className="mt-0.5 text-[11.5px] font-medium text-ink-3">
-                      {isMine ? 'Virement à effectuer' : 'En attente'}
-                    </div>
+                    <Money
+                      value={s.amount}
+                      size={14}
+                      weight={700}
+                      color={isMine ? '#A0496B' : '#2F4550'}
+                      currency={curr}
+                    />
                   </div>
-                  <Money
-                    value={s.amount}
-                    size={14}
-                    weight={700}
-                    color={isMine ? '#A0496B' : '#2F4550'}
-                    currency={curr}
-                  />
+                  {isMine && !alreadyPending ? (
+                    <button
+                      type="button"
+                      onClick={() => sendOne(s.to.id, s.amount)}
+                      disabled={busy === sendKey}
+                      className="ml-[80px] inline-flex items-center justify-center rounded-pill bg-ink px-3 py-1.5 text-[12px] font-bold text-white disabled:opacity-50"
+                    >
+                      <IcSwap size={13} sw={2} className="mr-1.5" />
+                      {busy === sendKey ? 'Envoi…' : "J'ai envoyé"}
+                    </button>
+                  ) : null}
                 </div>
                 {i < data.settlements.length - 1 ? <Divider inset={64} /> : null}
               </div>
@@ -261,18 +288,6 @@ export default function AccountsPage() {
           })}
         </Card>
       )}
-
-      {data.settlements.some((s) => s.from.id === session?.userId) ? (
-        <button
-          type="button"
-          onClick={markMineAsSent}
-          disabled={busy === 'mark-sent'}
-          className="btn-primary mt-2 w-full disabled:opacity-50"
-        >
-          <IcSwap size={17} sw={2} />
-          {busy === 'mark-sent' ? 'Envoi…' : 'Marquer mes paiements comme effectués'}
-        </button>
-      ) : null}
 
       {myPendingSent.length > 0 ? (
         <>

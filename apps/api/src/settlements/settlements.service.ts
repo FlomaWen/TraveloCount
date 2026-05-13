@@ -2,10 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { ActivityType, SettlementStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { computeBalances, computeSettlements } from '../trips/balances';
-
-interface CreateMineDto {
-  fromUserId?: string;
-}
+import { CreateSettlementDto } from './dto/create-settlement.dto';
 
 @Injectable()
 export class SettlementsService {
@@ -36,6 +33,67 @@ export class SettlementsService {
       cancelledAt: s.cancelledAt,
       rejectedAt: s.rejectedAt,
     }));
+  }
+
+  /**
+   * Create a single PENDING settlement from me to a specific user.
+   * Skips if there's already a pending one for the same pair.
+   */
+  async create(userId: string, tripId: string, dto: CreateSettlementDto) {
+    if (dto.toUserId === userId) {
+      throw new BadRequestException('Cannot send a payment to yourself');
+    }
+    const trip = await this.prisma.trip.findUnique({
+      where: { id: tripId },
+      select: {
+        currency: true,
+        members: { select: { userId: true } },
+      },
+    });
+    if (!trip) throw new NotFoundException('Trip not found');
+    const memberIds = new Set(trip.members.map((m) => m.userId));
+    if (!memberIds.has(userId)) throw new ForbiddenException('Not a member of this trip');
+    if (!memberIds.has(dto.toUserId)) {
+      throw new BadRequestException('Recipient is not a member of this trip');
+    }
+
+    const existing = await this.prisma.settlement.findFirst({
+      where: {
+        tripId,
+        fromUserId: userId,
+        toUserId: dto.toUserId,
+        status: SettlementStatus.PENDING,
+      },
+    });
+    if (existing) {
+      throw new BadRequestException('A pending settlement to this user already exists');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const settlement = await tx.settlement.create({
+        data: {
+          tripId,
+          fromUserId: userId,
+          toUserId: dto.toUserId,
+          amount: dto.amount.toString(),
+          currency: trip.currency,
+        },
+      });
+      await tx.activityEvent.create({
+        data: {
+          tripId,
+          userId,
+          type: ActivityType.SETTLEMENT_SENT,
+          payload: {
+            settlementId: settlement.id,
+            toUserId: dto.toUserId,
+            amount: dto.amount,
+            currency: trip.currency,
+          },
+        },
+      });
+      return settlement;
+    });
   }
 
   /**

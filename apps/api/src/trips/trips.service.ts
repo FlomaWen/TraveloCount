@@ -58,6 +58,10 @@ export class TripsService {
       include: {
         members: { include: { user: { select: { id: true, name: true, avatarUrl: true } } } },
         expenses: { select: { amount: true, payerId: true, shares: true } },
+        settlements: {
+          where: { status: 'CONFIRMED' },
+          select: { fromUserId: true, toUserId: true, amount: true },
+        },
       },
       orderBy: [{ startDate: 'asc' }, { createdAt: 'desc' }],
     });
@@ -66,7 +70,7 @@ export class TripsService {
     return trips.map((trip) => {
       const status = computeStatus(trip.startDate, trip.endDate, now);
       const totalSpent = sum(trip.expenses.map((e) => Number(e.amount)));
-      const userBalance = computeUserBalance(trip.expenses, userId);
+      const userBalance = computeUserBalance(trip.expenses, userId, trip.settlements);
       return {
         id: trip.id,
         title: trip.title,
@@ -96,6 +100,10 @@ export class TripsService {
       include: {
         members: { include: { user: { select: { id: true, name: true, avatarUrl: true, email: true } } } },
         expenses: { select: { amount: true, payerId: true, shares: true } },
+        settlements: {
+          where: { status: 'CONFIRMED' },
+          select: { fromUserId: true, toUserId: true, amount: true },
+        },
       },
     });
     if (!trip) throw new NotFoundException('Trip not found');
@@ -104,7 +112,7 @@ export class TripsService {
 
     const now = new Date();
     const totalSpent = sum(trip.expenses.map((e) => Number(e.amount)));
-    const userBalance = computeUserBalance(trip.expenses, userId);
+    const userBalance = computeUserBalance(trip.expenses, userId, trip.settlements);
 
     return {
       id: trip.id,
@@ -373,12 +381,17 @@ function sum(values: number[]): number {
 function computeUserBalance(
   expenses: { amount: Prisma.Decimal; payerId: string; shares: { userId: string; amount: Prisma.Decimal }[] }[],
   userId: string,
+  confirmedSettlements: { fromUserId: string; toUserId: string; amount: Prisma.Decimal }[] = [],
 ): number {
   let balance = 0;
   for (const exp of expenses) {
     if (exp.payerId === userId) balance += Number(exp.amount);
     const myShare = exp.shares.find((s) => s.userId === userId);
     if (myShare) balance -= Number(myShare.amount);
+  }
+  for (const s of confirmedSettlements) {
+    if (s.fromUserId === userId) balance += Number(s.amount);
+    if (s.toUserId === userId) balance -= Number(s.amount);
   }
   return Math.round(balance * 100) / 100;
 }

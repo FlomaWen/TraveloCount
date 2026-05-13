@@ -1,8 +1,9 @@
-import { Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/jwt.strategy';
 import { SettlementsService } from './settlements.service';
+import { CreateSettlementDto } from './dto/create-settlement.dto';
 
 @Controller('trips/:tripId/settlements')
 @UseGuards(JwtAuthGuard)
@@ -12,6 +13,15 @@ export class SettlementsController {
   @Get()
   list(@CurrentUser() user: AuthenticatedUser, @Param('tripId') tripId: string) {
     return this.settlements.list(user.id, tripId);
+  }
+
+  @Post()
+  create(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('tripId') tripId: string,
+    @Body() dto: CreateSettlementDto,
+  ) {
+    return this.settlements.create(user.id, tripId, dto);
   }
 
   @Post('mark-mine-sent')
