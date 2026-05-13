@@ -239,9 +239,6 @@ export default function AccountsPage() {
         <Card padding={0}>
           {data.settlements.map((s, i) => {
             const isMine = s.from.id === session?.userId;
-            const alreadyPending = isMine
-              ? myPendingSent.find((p) => p.to.id === s.to.id)
-              : null;
             const sendKey = `send-${s.to.id}`;
             return (
               <div key={i}>
@@ -255,11 +252,7 @@ export default function AccountsPage() {
                         {isMine ? 'Tu' : s.from.name.split(' ')[0]} → {s.to.name.split(' ')[0]}
                       </div>
                       <div className="mt-0.5 text-[11.5px] font-medium text-ink-3">
-                        {alreadyPending
-                          ? 'Envoyé · attend confirmation'
-                          : isMine
-                          ? 'Virement à effectuer'
-                          : 'En attente'}
+                        {isMine ? 'Reste à envoyer' : 'En attente'}
                       </div>
                     </div>
                     <Money
@@ -270,7 +263,7 @@ export default function AccountsPage() {
                       currency={curr}
                     />
                   </div>
-                  {isMine && !alreadyPending ? (
+                  {isMine ? (
                     <button
                       type="button"
                       onClick={() => sendOne(s.to.id, s.amount)}

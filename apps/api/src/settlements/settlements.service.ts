@@ -57,18 +57,6 @@ export class SettlementsService {
       throw new BadRequestException('Recipient is not a member of this trip');
     }
 
-    const existing = await this.prisma.settlement.findFirst({
-      where: {
-        tripId,
-        fromUserId: userId,
-        toUserId: dto.toUserId,
-        status: SettlementStatus.PENDING,
-      },
-    });
-    if (existing) {
-      throw new BadRequestException('A pending settlement to this user already exists');
-    }
-
     return this.prisma.$transaction(async (tx) => {
       const settlement = await tx.settlement.create({
         data: {

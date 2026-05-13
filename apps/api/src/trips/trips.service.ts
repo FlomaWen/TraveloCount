@@ -344,8 +344,8 @@ export class TripsService {
         members: { include: { user: { select: { id: true, name: true } } } },
         expenses: { select: { payerId: true, amount: true, shares: true } },
         settlements: {
-          where: { status: 'CONFIRMED' },
-          select: { fromUserId: true, toUserId: true, amount: true },
+          where: { status: { in: ['CONFIRMED', 'PENDING'] } },
+          select: { fromUserId: true, toUserId: true, amount: true, status: true },
         },
       },
     });
@@ -360,14 +360,26 @@ export class TripsService {
       amount: Number(e.amount),
       shares: e.shares.map((s) => ({ userId: s.userId, amount: Number(s.amount) })),
     }));
-    const confirmedSettlements = trip.settlements.map((s) => ({
+    const confirmedOnly = trip.settlements
+      .filter((s) => s.status === 'CONFIRMED')
+      .map((s) => ({
+        fromUserId: s.fromUserId,
+        toUserId: s.toUserId,
+        amount: Number(s.amount),
+      }));
+    // For "what's left to pay", we also subtract PENDING settlements so the
+    // proposed amount is the remaining delta, not the total raw debt.
+    const confirmedAndPending = trip.settlements.map((s) => ({
       fromUserId: s.fromUserId,
       toUserId: s.toUserId,
       amount: Number(s.amount),
     }));
 
-    const balances = computeBalances(memberIds, expenses, confirmedSettlements);
-    const settlements = computeSettlements(balances);
+    // Real balances (for the "Position par personne" display) only count CONFIRMED.
+    const balances = computeBalances(memberIds, expenses, confirmedOnly);
+    // The proposed settlement plan deducts PENDING too, so users only see what's left to send.
+    const remainingBalances = computeBalances(memberIds, expenses, confirmedAndPending);
+    const settlements = computeSettlements(remainingBalances);
     const memberMap = new Map(trip.members.map((m) => [m.userId, m.user]));
 
     return {
