@@ -7,24 +7,8 @@ import { Avatar, Card, Chip, Money } from '@/components/atoms';
 import { BottomNav } from '@/components/bottom-nav';
 import { IcSparkle } from '@/components/icons';
 import { LoadingFallback, Skeleton } from '@/components/skeleton';
-
-type Category = 'TRANSPORT' | 'LODGING' | 'RESTAURANT' | 'ACTIVITY' | 'OTHER';
-
-const CAT_COLOR: Record<Category, string> = {
-  TRANSPORT: '#B8DBD9',
-  LODGING: '#2F4550',
-  RESTAURANT: '#586F7C',
-  ACTIVITY: '#0C1A22',
-  OTHER: '#9CC9C5',
-};
-
-const CAT_LABEL: Record<Category, string> = {
-  TRANSPORT: 'Transport',
-  LODGING: 'Logement',
-  RESTAURANT: 'Resto',
-  ACTIVITY: 'Activités',
-  OTHER: 'Autre',
-};
+import { currencySymbol } from '@/lib/currency';
+import { CAT_COLOR, CAT_LABEL, CategoryDonut, type Category } from './_category-donut';
 
 interface Trip {
   id: string;
@@ -84,7 +68,6 @@ export default function StatsPage() {
         </div>
       </header>
 
-      {/* Scope chips */}
       <div className="px-4 pt-2.5">
         <div className="flex gap-1.5 overflow-x-auto pb-1.5">
           {trips.map((t) => (
@@ -149,7 +132,6 @@ export default function StatsPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-3 p-4">
-          {/* Donut */}
           <Card>
             <div className="mb-3.5 flex items-center justify-between">
               <div className="text-[14px] font-bold text-ink">Répartition par catégorie</div>
@@ -176,7 +158,6 @@ export default function StatsPage() {
             </div>
           </Card>
 
-          {/* Daily bars */}
           <Card>
             <div className="flex items-center justify-between">
               <div className="text-[14px] font-bold text-ink">Dépenses par jour</div>
@@ -218,7 +199,6 @@ export default function StatsPage() {
             </div>
           </Card>
 
-          {/* KPI grid */}
           <div className="grid grid-cols-2 gap-2.5">
             <Card padding={14}>
               <div className="label-up">Dépense moyenne</div>
@@ -253,7 +233,6 @@ export default function StatsPage() {
             </Card>
           </div>
 
-          {/* Budget tip */}
           {stats.budget !== null && budgetPct !== null ? (
             <Card className="!bg-accent">
               <div className="flex items-start gap-2.5">
@@ -281,58 +260,7 @@ export default function StatsPage() {
   );
 }
 
-function CategoryDonut({
-  categories,
-  total,
-  currency,
-}: {
-  categories: { category: Category; value: number }[];
-  total: number;
-  currency: string;
-}) {
-  const r = 46;
-  const C = 2 * Math.PI * r;
-  let cumPct = 0;
-  return (
-    <div className="relative">
-      <svg width="120" height="120" viewBox="0 0 120 120">
-        <circle cx="60" cy="60" r={r} fill="none" stroke="#F4F4F9" strokeWidth="22" />
-        {categories.map((c) => {
-          const pct = total > 0 ? c.value / total : 0;
-          const dash = pct * C;
-          const off = -cumPct * C;
-          cumPct += pct;
-          return (
-            <circle
-              key={c.category}
-              cx="60"
-              cy="60"
-              r={r}
-              fill="none"
-              stroke={CAT_COLOR[c.category]}
-              strokeWidth="22"
-              strokeDasharray={`${dash} ${C - dash}`}
-              strokeDashoffset={off}
-              transform="rotate(-90 60 60)"
-            />
-          );
-        })}
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <div className="mono text-[18px] font-bold text-ink">
-          {Math.round(total)}
-          {currency}
-        </div>
-        <div className="label-up !text-[9.5px]">Total</div>
-      </div>
-    </div>
-  );
-}
-
 function dayLabel(iso: string): string {
   return new Date(iso).getDate().toString();
 }
 
-function currencySymbol(code: string): string {
-  return code === 'EUR' ? '€' : code === 'USD' ? '$' : code === 'GBP' ? '£' : code;
-}

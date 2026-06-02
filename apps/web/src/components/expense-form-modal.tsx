@@ -9,41 +9,17 @@ import { ocrReceipt, type OcrResult } from '@/lib/ocr';
 import { Avatar, Chip, Label } from './atoms';
 import { Sheet } from './sheet';
 import { CatIcon, IcCamera, IcCheck, IcEdit, IcReceipt, IcSparkle } from './icons';
+import { currencySymbol } from '@/lib/currency';
+import { ScanResultDialog } from './scan-result-dialog';
+import {
+  CATEGORIES,
+  CURRENCIES,
+  SPLIT_METHODS,
+  type ExpenseEditData,
+  type Member,
+} from './expense-form-constants';
 
-const CATEGORIES = [
-  { value: 'TRANSPORT', label: 'Transport', icon: 'car' as const },
-  { value: 'RESTAURANT', label: 'Resto', icon: 'fork' as const },
-  { value: 'LODGING', label: 'Logement', icon: 'bed' as const },
-  { value: 'ACTIVITY', label: 'Activité', icon: 'ticket' as const },
-  { value: 'OTHER', label: 'Autre', icon: 'receipt' as const },
-] as const;
-
-const SPLIT_METHODS = [
-  { value: 'EQUAL', label: 'Égal' },
-  { value: 'SHARES', label: 'Parts' },
-  { value: 'EXACT', label: 'Exact' },
-] as const;
-
-const CURRENCIES = ['EUR', 'USD', 'GBP', 'CHF', 'JPY', 'CAD'];
-
-interface Member {
-  id: string;
-  name: string;
-}
-
-export interface ExpenseEditData {
-  id: string;
-  label: string;
-  category: (typeof CATEGORIES)[number]['value'];
-  amount: number;
-  currency: string;
-  amountOriginal: number | null;
-  currencyOriginal: string | null;
-  date: string | Date;
-  splitMethod: (typeof SPLIT_METHODS)[number]['value'];
-  payer: { id: string };
-  shares: { userId: string; amount: number }[];
-}
+export type { ExpenseEditData } from './expense-form-constants';
 
 interface Props {
   tripId: string;
@@ -288,7 +264,6 @@ export function ExpenseFormModal({
           </div>
         ) : null}
 
-        {/* Amount big */}
         <div className="flex flex-col items-center gap-1.5 border-b border-line py-6">
           <div className="label-up-bold">Montant</div>
           <div className="flex items-baseline gap-1">
@@ -327,7 +302,6 @@ export function ExpenseFormModal({
           ) : null}
         </div>
 
-        {/* Description */}
         <div className="pt-4">
           <Label>Description</Label>
           <div className="flex items-center gap-2.5 rounded-input bg-bg px-3.5 py-3">
@@ -344,7 +318,6 @@ export function ExpenseFormModal({
           </div>
         </div>
 
-        {/* Category */}
         <div className="pt-4">
           <Label>Catégorie</Label>
           <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
@@ -367,7 +340,6 @@ export function ExpenseFormModal({
           </div>
         </div>
 
-        {/* Date */}
         <div className="pt-4">
           <Label>Date</Label>
           <input
@@ -378,7 +350,6 @@ export function ExpenseFormModal({
           />
         </div>
 
-        {/* Payer */}
         <div className="pt-4">
           <Label>Payé par</Label>
           <div className="flex flex-wrap gap-2">
@@ -401,7 +372,6 @@ export function ExpenseFormModal({
           </div>
         </div>
 
-        {/* Split */}
         <div className="pt-4">
           <div className="mb-2 flex items-center justify-between">
             <Label noMargin>Partager entre · {selected.size}/{members.length}</Label>
@@ -561,51 +531,14 @@ export function ExpenseFormModal({
       </div>
 
       {scanResult ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/60 p-6">
-          <div className="w-full max-w-sm rounded-card-lg bg-surface p-5 shadow-card-lg">
-            <div className="mb-1 text-[14px] font-bold text-ink">Résultats détectés</div>
-            <p className="mb-4 text-[12px] text-ink-3">
-              Vérifie les valeurs avant d'appliquer. Tu pourras toujours les corriger ensuite.
-            </p>
-            <div className="space-y-2">
-              <ScanRow label="Montant" value={scanResult.amount !== null ? `${scanResult.amount.toFixed(2).replace('.', ',')} ${currencySymbol(scanResult.currency ?? currency)}` : 'Non détecté'} found={scanResult.amount !== null} />
-              <ScanRow label="Devise" value={scanResult.currency ?? 'Non détectée'} found={!!scanResult.currency} />
-              <ScanRow label="Date" value={scanResult.date ?? 'Non détectée'} found={!!scanResult.date} />
-            </div>
-            <div className="mt-5 flex gap-2">
-              <button
-                type="button"
-                onClick={() => setScanResult(null)}
-                className="flex-1 rounded-input border border-line2 bg-surface px-4 py-2.5 text-[13px] font-semibold text-ink-2"
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                onClick={applyScanResult}
-                className="flex-1 rounded-input bg-ink px-4 py-2.5 text-[13px] font-bold text-white"
-              >
-                Appliquer
-              </button>
-            </div>
-          </div>
-        </div>
+        <ScanResultDialog
+          result={scanResult}
+          fallbackCurrency={currency}
+          onCancel={() => setScanResult(null)}
+          onApply={applyScanResult}
+        />
       ) : null}
     </Sheet>
   );
 }
 
-function ScanRow({ label, value, found }: { label: string; value: string; found: boolean }) {
-  return (
-    <div className="flex items-center justify-between rounded-input bg-bg px-3 py-2">
-      <span className="text-[12px] font-semibold text-ink-3">{label}</span>
-      <span className={`text-[13px] font-bold ${found ? 'text-ink' : 'text-ink-3'}`}>
-        {value}
-      </span>
-    </div>
-  );
-}
-
-function currencySymbol(code: string): string {
-  return code === 'EUR' ? '€' : code === 'USD' ? '$' : code === 'GBP' ? '£' : code;
-}

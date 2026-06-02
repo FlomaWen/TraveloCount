@@ -7,8 +7,8 @@ import { apiFetch, ApiError } from '@/lib/api-client';
 import { Avatar, Card, Chip, Label } from '@/components/atoms';
 import { IcArrowL, IcCamera, IcPlus, IcReceipt } from '@/components/icons';
 import { LoadingFallback, Skeleton, SkeletonCircle } from '@/components/skeleton';
-import { Sheet } from '@/components/sheet';
 import { env } from '@/lib/env';
+import { LinkExpenseSheet } from './_link-expense-sheet';
 
 interface ExpenseRef {
   id: string;
@@ -196,7 +196,6 @@ export default function DocumentsPage() {
       </header>
 
       <div className="flex flex-col gap-3 p-4">
-        {/* Upload zone */}
         <Card>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[10px] bg-accent text-accent-ink">
@@ -229,7 +228,6 @@ export default function DocumentsPage() {
 
         {error ? <p className="text-sm text-neg">{error}</p> : null}
 
-        {/* List */}
         <div>
           <div className="px-1 pb-2">
             <Label noMargin>
@@ -300,62 +298,13 @@ export default function DocumentsPage() {
       </div>
 
       {linking ? (
-        <Sheet
-          title="Lier à une dépense"
+        <LinkExpenseSheet
+          linkedExpenseId={linking.linkedExpenseId}
+          expenses={expenses}
+          busy={linkingBusy}
           onClose={() => setLinking(null)}
-          action={
-            linking.linkedExpenseId ? (
-              <button
-                type="button"
-                onClick={() => linkDocument(linking.id, null)}
-                disabled={linkingBusy}
-                className="rounded-[9px] border border-neg/40 px-3 py-[7px] text-[12px] font-bold text-neg disabled:opacity-40"
-              >
-                Délier
-              </button>
-            ) : undefined
-          }
-        >
-          <div className="px-2 pb-3">
-            {expenses.length === 0 ? (
-              <p className="px-3 py-6 text-center text-[13px] text-ink-3">
-                Aucune dépense dans ce voyage.
-              </p>
-            ) : (
-              expenses.map((e) => {
-                const selected = linking.linkedExpenseId === e.id;
-                return (
-                  <button
-                    key={e.id}
-                    type="button"
-                    onClick={() => linkDocument(linking.id, e.id)}
-                    disabled={linkingBusy}
-                    className="flex w-full items-center gap-3 rounded-card px-3 py-3 text-left hover:bg-bg disabled:opacity-50"
-                  >
-                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] bg-bg text-ink-2">
-                      <IcReceipt size={16} sw={1.8} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-[14px] font-semibold text-ink">{e.label}</div>
-                      <div className="mt-0.5 text-[11.5px] text-ink-3">
-                        {new Date(e.date).toLocaleDateString('fr-FR', {
-                          day: 'numeric',
-                          month: 'short',
-                        })}{' '}
-                        ·{' '}
-                        {e.amount.toFixed(2).replace('.', ',')}
-                        {e.currency === 'EUR' ? '€' : e.currency}
-                      </div>
-                    </div>
-                    {selected ? (
-                      <span className="text-[14px] font-bold text-accent">✓</span>
-                    ) : null}
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </Sheet>
+          onLink={(expenseId) => linkDocument(linking.id, expenseId)}
+        />
       ) : null}
     </main>
   );

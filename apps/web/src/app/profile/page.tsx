@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/api-client';
 import { Card, Chip, Divider, initialsOf } from '@/components/atoms';
+import { currencySymbol } from '@/lib/currency';
 import { BottomNav } from '@/components/bottom-nav';
 import {
   IcArrowR,
@@ -258,10 +259,6 @@ export default function ProfilePage() {
       {sheet === 'about' ? <AboutSheet onClose={() => setSheet(null)} /> : null}
     </main>
   );
-}
-
-function currencySymbol(code: string): string {
-  return code === 'EUR' ? '€' : code === 'USD' ? '$' : code === 'GBP' ? '£' : code;
 }
 
 interface Section {

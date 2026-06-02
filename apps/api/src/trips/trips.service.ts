@@ -8,6 +8,15 @@ import { CreateTripDto } from './dto/create-trip.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 import { UpdateTripDto } from './dto/update-trip.dto';
 import { computeBalances, computeSettlements } from './balances';
+import {
+  computeDayNumber,
+  computeStatus,
+  computeTotalDays,
+  computeUserBalance,
+  extToMime,
+  mimeToExt,
+  sum,
+} from './trips.helpers';
 
 const COVER_ROOT = resolve(process.cwd(), 'uploads', 'trip-covers');
 const COVER_ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -360,6 +369,11 @@ export class TripsService {
       amount: Number(e.amount),
       shares: e.shares.map((s) => ({ userId: s.userId, amount: Number(s.amount) })),
     }));
+    const paidByUser = new Map<string, number>();
+    for (const id of memberIds) paidByUser.set(id, 0);
+    for (const e of expenses) {
+      paidByUser.set(e.payerId, (paidByUser.get(e.payerId) ?? 0) + e.amount);
+    }
     const confirmedOnly = trip.settlements
       .filter((s) => s.status === 'CONFIRMED')
       .map((s) => ({
@@ -387,6 +401,7 @@ export class TripsService {
       balances: balances.map((b) => ({
         user: memberMap.get(b.userId),
         amount: b.amount,
+        totalPaid: Math.round((paidByUser.get(b.userId) ?? 0) * 100) / 100,
       })),
       settlements: settlements.map((s) => ({
         from: memberMap.get(s.fromUserId),
@@ -395,67 +410,4 @@ export class TripsService {
       })),
     };
   }
-}
-
-function sum(values: number[]): number {
-  return values.reduce((a, b) => a + b, 0);
-}
-
-function computeUserBalance(
-  expenses: { amount: Prisma.Decimal; payerId: string; shares: { userId: string; amount: Prisma.Decimal }[] }[],
-  userId: string,
-  confirmedSettlements: { fromUserId: string; toUserId: string; amount: Prisma.Decimal }[] = [],
-): number {
-  let balance = 0;
-  for (const exp of expenses) {
-    if (exp.payerId === userId) balance += Number(exp.amount);
-    const myShare = exp.shares.find((s) => s.userId === userId);
-    if (myShare) balance -= Number(myShare.amount);
-  }
-  for (const s of confirmedSettlements) {
-    if (s.fromUserId === userId) balance += Number(s.amount);
-    if (s.toUserId === userId) balance -= Number(s.amount);
-  }
-  return Math.round(balance * 100) / 100;
-}
-
-type TripStatus = 'IN_PROGRESS' | 'UPCOMING' | 'PAST' | 'UNDATED';
-
-function endOfDay(d: Date): Date {
-  const r = new Date(d);
-  r.setUTCHours(23, 59, 59, 999);
-  return r;
-}
-
-function computeStatus(start: Date | null, end: Date | null, now: Date): TripStatus {
-  if (!start || !end) return 'UNDATED';
-  if (now < start) return 'UPCOMING';
-  if (now > endOfDay(end)) return 'PAST';
-  return 'IN_PROGRESS';
-}
-
-function computeDayNumber(start: Date | null, end: Date | null, now: Date): number | null {
-  if (!start || !end || now < start || now > endOfDay(end)) return null;
-  const days = Math.floor((now.getTime() - start.getTime()) / (24 * 3600 * 1000)) + 1;
-  return days;
-}
-
-function computeTotalDays(start: Date | null, end: Date | null): number | null {
-  if (!start || !end) return null;
-  return Math.floor((end.getTime() - start.getTime()) / (24 * 3600 * 1000)) + 1;
-}
-
-function mimeToExt(mime: string): string {
-  if (mime === 'image/jpeg') return '.jpg';
-  if (mime === 'image/png') return '.png';
-  if (mime === 'image/webp') return '.webp';
-  return '';
-}
-
-function extToMime(ext: string): string {
-  const e = ext.toLowerCase();
-  if (e === '.jpg' || e === '.jpeg') return 'image/jpeg';
-  if (e === '.png') return 'image/png';
-  if (e === '.webp') return 'image/webp';
-  return 'application/octet-stream';
 }

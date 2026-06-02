@@ -9,6 +9,7 @@ import { Avatar, Card, Chip, Money } from '@/components/atoms';
 import { BottomNav } from '@/components/bottom-nav';
 import { IcArrowL, IcArrowR, IcSwap } from '@/components/icons';
 import { LoadingFallback, Skeleton, SkeletonCircle } from '@/components/skeleton';
+import { currencySymbol } from '@/lib/currency';
 
 interface TripDebt {
   tripId: string;
@@ -175,21 +176,3 @@ export default function AccountsPage() {
   );
 }
 
-function currencySymbol(code: string): string {
-  switch (code) {
-    case 'EUR':
-      return '€';
-    case 'USD':
-      return '$';
-    case 'GBP':
-      return '£';
-    case 'JPY':
-      return '¥';
-    case 'CAD':
-      return 'CA$';
-    case 'CHF':
-      return 'CHF';
-    default:
-      return code;
-  }
-}
