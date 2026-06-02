@@ -18,7 +18,7 @@ interface UserRef {
 
 interface BalancesResponse {
   currency: string;
-  balances: { user: UserRef; amount: number; totalPaid: number }[];
+  balances: { user: UserRef; amount: number; totalShare: number }[];
   settlements: { from: UserRef; to: UserRef; amount: number }[];
 }
 
@@ -148,7 +148,7 @@ export default function AccountsPage() {
                         <span className="font-normal text-ink-3"> · toi</span>
                       ) : null}
                       <span className="ml-1.5 font-normal text-ink-3">
-                        a payé {b.totalPaid.toFixed(b.totalPaid % 1 === 0 ? 0 : 2)}
+                        part {b.totalShare.toFixed(b.totalShare % 1 === 0 ? 0 : 2)}
                         {curr}
                       </span>
                     </span>

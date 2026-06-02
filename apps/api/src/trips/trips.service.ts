@@ -369,10 +369,12 @@ export class TripsService {
       amount: Number(e.amount),
       shares: e.shares.map((s) => ({ userId: s.userId, amount: Number(s.amount) })),
     }));
-    const paidByUser = new Map<string, number>();
-    for (const id of memberIds) paidByUser.set(id, 0);
+    const shareByUser = new Map<string, number>();
+    for (const id of memberIds) shareByUser.set(id, 0);
     for (const e of expenses) {
-      paidByUser.set(e.payerId, (paidByUser.get(e.payerId) ?? 0) + e.amount);
+      for (const s of e.shares) {
+        shareByUser.set(s.userId, (shareByUser.get(s.userId) ?? 0) + s.amount);
+      }
     }
     const confirmedOnly = trip.settlements
       .filter((s) => s.status === 'CONFIRMED')
@@ -401,7 +403,7 @@ export class TripsService {
       balances: balances.map((b) => ({
         user: memberMap.get(b.userId),
         amount: b.amount,
-        totalPaid: Math.round((paidByUser.get(b.userId) ?? 0) * 100) / 100,
+        totalShare: Math.round((shareByUser.get(b.userId) ?? 0) * 100) / 100,
       })),
       settlements: settlements.map((s) => ({
         from: memberMap.get(s.fromUserId),
